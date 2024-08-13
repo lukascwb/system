@@ -14,7 +14,7 @@ async function insertProductData(lineKeepa) {
             "engine": "google_shopping",
             "q": `${lineKeepa.Title}`,
             "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
-            "api_key": "NSaKQST1EL6PLXbfN6t3fJ6f",
+            "api_key":process.env.api_key,
             "tbs": "mr:1,local_avail:1,ss:30"
         };
 
@@ -89,7 +89,7 @@ async function getProductData(tblKeepa) {
             // Create an array of promises for each API request:
 
             const promises = keepaTitles.map(title => {
-                //let url = `https://www.searchapi.io/api/v1/search?api_key=NSaKQST1EL6PLXbfN6t3fJ6f&engine=google_shopping&q=${title}&location=Fall%20River%2CMassachusetts%2CUnited+States`
+                //let url = `https://www.searchapi.io/api/v1/search?api_key=process.env.api_key&engine=google_shopping&q=${title}&location=Fall%20River%2CMassachusetts%2CUnited+States`
                 //let filter = `&tbs=mr:1,local_avail:1,ss:30`;
                 //let filter = `&tbs=mr:1,merchagg:g8299768%7Cg784994%7Cg128518585%7Cg8666297%7Cg138144780%7Cm8175035%7Cm125198988%7Cm125198037%7Cm5336668818%7Cm263254853%7Cm10046%7Cm366131026%7Cm178357739%7Cm178347382%7Cm178357103%7Cm260435655%7Cm118138822%7Cm10037%7Cm324480287%7Cm1062500&sa=X&ved=0ahUKEwib7Jieg7uGAxXuFFkFHftADK4QsysIogsoSw&biw=1718&bih=1304&dpr=1`;
                 const url = "https://www.searchapi.io/api/v1/search";
@@ -97,7 +97,7 @@ async function getProductData(tblKeepa) {
                     "engine": "google_shopping",
                     "q": `${title}`,
                     "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
-                    "api_key": "NSaKQST1EL6PLXbfN6t3fJ6f",
+                    "api_key": process.env.api_key,
                     "tbs": "mr:1,local_avail:1,ss:30"
 
                 };
@@ -426,12 +426,12 @@ module.exports = {
 /*
 app.get("/api", function (req, res) {
 
-    let url = 'https://www.searchapi.io/api/v1/search?api_key=NSaKQST1EL6PLXbfN6t3fJ6f&engine=google_shopping&q=PS5&location=Fall%20River%2CMassachusetts%2CUnited+States&tbs=mr:1,local_avail:1,ss:30';
+    let url = 'https://www.searchapi.io/api/v1/search?api_key=process.env.api_key&engine=google_shopping&q=PS5&location=Fall%20River%2CMassachusetts%2CUnited+States&tbs=mr:1,local_avail:1,ss:30';
     /*const params = {
         "engine": "google_shopping",
         "q": "PS5",
         "location": "Massachusetts, United States",
-        "api_key": "NSaKQST1EL6PLXbfN6t3fJ6f"
+        "api_key": process.env.api_key
     };
 
     axios.get(url)
