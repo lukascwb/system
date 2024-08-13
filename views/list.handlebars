@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Keepa IDs</title>
+</head>
+<body>
+    <h1>Keepa IDs</h1>
+    <ul>
+        {{#each keepaIds}}
+            <li>
+                <a href="/api/page/1?keepa_id={{this}}">{{this}}</a>
+            </li>
+        {{/each}}
+    </ul>
+</body>
+</html>

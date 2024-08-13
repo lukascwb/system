@@ -1,0 +1,22 @@
+<h1>Lista de Aluno:</h1>
+<a href="/cad"><button class="btn btn-outline-success">Cadastro </button></a>
+
+<table class="table table-dark">
+    <thead>
+        <tr>
+            <th scope="col">#ID</th>
+            <th scope="col">Nome</th>
+            <th scope="col">Idade</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{#each alunos}}
+        <tr>
+            <th scope="row">{{id}}</th>
+            <td>{{nome}}</td>
+            <td>{{idade}}</td>
+
+        </tr>
+        {{/each}}
+    </tbody>
+</table>

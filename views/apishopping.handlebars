@@ -1,0 +1,166 @@
+<form id="keepaForm" action="/api" method="GET"> <!---Add id to the form-->
+  <div style="text-align: center;">
+    <h1>API Google Shopping</h1>Total page load time: {{'totalTime'}} seconds
+    <h1>Keepa Data - Page {{currentPage}} of {{totalPages}}</h1>
+
+  </div>
+
+  <div class="container-fluid" style="inline-size: max-content; display: inline">
+    <table class="table table-dark">
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Title</th>
+          <th>Prices/ Sales rank</th>
+          <th>Desc</th>
+          <th>Others</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each tblKeepa}}
+        <tr id="keepa-row-{{@index}}">
+          <td><a target="_blank" href="{{'URL: Amazon'}}"><img width="80" height="80" src="{{Image}}"
+                class="rounded mx-auto d-block zoom" alt="Not Found"></a></td>
+          <th class="text-wrap"> {{Title}}</th>
+          <th> <b>Avg Offer: ${{'New: Average'}} - Price Sellable: ${{'New: Price Sellable'}}<br>
+              Avg BB: ${{'Buy Box: Average'}} Price Sellable: ${{'Buy Box: Price Sellable'}}</b> <br>
+
+            Sales Rank: {{'Sales Rank: Current'}} - Sales Rank: 30D: {{'Sales Rank: 30 days avg.'}}- Sales Rank: 180D:
+            {{'Sales Rank: 180 days
+            avg.'}}<br>
+            <br>
+          </th>
+          <th>
+            Bought in past month: {{'Bought in past month'}} <br>
+            Offer - Current:{{'New Offer Count: Current'}} - Brand: {{'Brand'}} -  
+            <a style="color: white;" target="_blank" href="{{BJs Brand}}">
+              BJ's
+            </a>
+            <br>
+            Amazon BB:{{'Buy Box: % Amazon 365 days'}} {{checkAmazonBB 'Buy Box: % Amazon 365 days'}} - Buy Box: Is FBA:
+            {{'Buy Box: Is FBA'}}<br>
+            <br>
+          </th>
+          <th>
+            New: {{'New: Current'}} - New 30D: {{'New: 30 days avg.'}} - New 180D:
+            {{'New: 180 days avg.'}}<br>
+            Buy Box: {{'Buy Box: Current'}} - Buy Box: 90D: {{'Buy Box: 90 days
+            avg.'}}<br>
+            Variation Ct: {{'Variation Count'}}
+            <a style="color: white;" target="_blank" href="{{html_url}}">
+              <p class="text-wrap">Google Shopping🔗</p>
+            </a>
+          </th>
+        </tr>
+        <tr>
+          <td colspan="6">
+            <div class="d-flex flex-wrap">
+              {{#each productsAPI}}
+              <div class="product-result ">
+                <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found">
+                <a style="color: white;" target="_blank" href="{{link}}">
+                  <p class="text-wrap">{{title}} - {{price}} - {{seller}} </p>
+                </a>
+              </div>
+              {{/each}}
+
+              <br>
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <nav aria-label="Page navigation">
+      <ul class="pagination">
+        {{#if (gt currentPage 1)}}
+        <li class="page-item">
+          <a class="page-link" href="/api/page/{{dec currentPage}}?keepa_id={{keepa_id}}">Previous</a>
+        </li>
+        {{/if}}
+        {{#each (range startPage (inc endPage))}}
+        <li class="page-item {{#if (eq this currentPage)}}active{{/if}}">
+          <a class="page-link" href="/api/page/{{this}}?keepa_id={{../keepa_id}}">{{this}}</a>
+        </li>
+        {{/each}}
+
+        {{#if (lt currentPage totalPages)}}
+        <li class="page-item">
+          <a class="page-link" href="/api/page/{{inc currentPage}}?keepa_id={{keepa_id}}">Next</a>
+        </li>
+        {{/if}}
+      </ul>
+    </nav>
+  </div>
+</form>
+
+<style>
+  /* ... (your previous styles for table, text-wrap, etc.) ... */
+
+  /* Style for product result containers */
+  .product-result {
+    margin-right: 10px;
+    /* Add spacing between results */
+    text-align: center;
+    align-items: center;
+  }
+
+
+  .table td,
+  .table th {
+    max-height: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Remove white-space: nowrap; to allow wrapping */
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .table {
+    width: 100%;
+  }
+
+  /* Apply text-wrap class and set max-width for specific columns */
+  .text-wrap {
+    word-wrap: break-word;
+    /* Allow long words to break */
+    max-width: 230px;
+    /* Adjust as needed */
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .text-wrap1 {
+    word-wrap: break-word;
+    /* Allow long words to break */
+    max-width: 100px;
+    /* Adjust as needed */
+  }
+
+  .zoom {
+    /* Animation */
+    margin: 0 auto;
+  }
+
+  .zoom:hover {
+    transform: scale(6);
+    position: absolute;
+    transform-origin: center center;
+    /* Default value */
+  }
+
+  tr td:nth-child(1) .zoom:hover {
+    transform-origin: left center;
+    /* Set the origin to the left edge for the first image */
+  }
+
+  tr td:nth-child(5) .zoom:hover {
+    transform-origin: right center;
+    /* Set the origin to the right edge for the last image */
+  }
+
+  .matching-row {
+    background-color: #60cd603d;
+    /* Or any color you prefer */
+  }
+</style>
