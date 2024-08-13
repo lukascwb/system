@@ -13,18 +13,11 @@ const fs = require('fs');
 //const removeEmojis = import('remove-emoji');
 const KeepaCSV = require('./models/keepa');
 const db = require('./models/database');
-const { Console } = require('console');
-const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 const sequelize = require('sequelize');
-const { stringify } = require('querystring');
 const dotenv = require('dotenv');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const session = require('express-session');
 const bcryptjs = require('bcryptjs');
-const passport = require('passport');
-const router = express.Router();
-const flash = require('express-flash');
 
 
 //const stripBomStream = require('strip-bom-stream');
@@ -310,21 +303,21 @@ app.get('/register', (req, res) => {
 app.post('/register', async (req, res) => {
     try {
 
-        return res.status(401).send('Error to create.');
-        /*
       const { username, password } = req.body;
   
       // Hash the password:
-      const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
+      //const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
         
 
       const user = await User.create({
         username: username,
-        password: hashedPassword // Store the hashed password 
+        password: password//hashedPassword // Store the hashed password 
       }); 
   
       // ... redirect or send a success response ...
-      res.redirect('/login');*/
+      res.redirect('/login');
+
+      //return res.status(401).send('Error to create.');
 
     } catch (error) {
         return res.status(401).send('Error to create.');

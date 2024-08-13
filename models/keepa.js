@@ -125,8 +125,8 @@ const KeepaCSV = db.sequelize.define('KeepaCSV', {
   try {
     await db.sequelize.authenticate();
     console.log('KeepaCSV -Connection has been established successfully.');
-    //await KeepaCSV.sync(); // Create table if it doesn't exist
-    await KeepaCSV.sync({force:true}); // force
+    await KeepaCSV.sync(); // Create table if it doesn't exist
+    //await KeepaCSV.sync({force:true}); // force
     console.log('KeepaCSV table synchronized.');
   } catch (err) {
     console.error('Unable to connect to the database:', err);

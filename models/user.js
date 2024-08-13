@@ -25,8 +25,8 @@ module.exports = User;
 // Synchronize the model with the database
 (async () => {
   try {
-    //await User.sync(); 
-    await User.sync({force:true}); // force
+    await User.sync(); 
+    //await User.sync({force:true}); // force
     console.log('User table synchronized.');
   } catch (error) {
     console.error('Error synchronizing User table:', error); 

@@ -343,8 +343,8 @@ const Api = db.sequelize.define('Api', {
     try {
         await db.sequelize.authenticate();
         console.log('Connection has been established successfully.');
-        //await Api.sync();
-        await Api.sync({ force: true }); // force
+        await Api.sync();
+        //await Api.sync({ force: true }); // force
         console.log('Api table synchronized.');
     } catch (err) {
         console.error('Unable to connect to the database:', err);
@@ -401,8 +401,8 @@ const Products = db.sequelize.define('Products', {
     try {
         await db.sequelize.authenticate();
         console.log('Connection has been established successfully.');
-        //await Products.sync();
-        await Products.sync({ force: true }); // force
+        await Products.sync();
+        //await Products.sync({ force: true }); // force
         console.log('Products table synchronized.');
     } catch (err) {
         console.error('Unable to connect to the database:', err);

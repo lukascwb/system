@@ -35,8 +35,8 @@ function InsertData1(data) {
     try {
       await sequelize.authenticate();
       console.log('Connection has been established successfully.');
-      //await data.sync(); // Create table if it doesn't exist
-      await data.sync({force:true}); // force
+      await data.sync(); // Create table if it doesn't exist
+      //await data.sync({force:true}); // force
       console.log(data.name + ' table synchronized. 1111');
     } catch (err) {
       console.error('Unable to connect to the database:', err);
