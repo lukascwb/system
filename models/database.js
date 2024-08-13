@@ -1,15 +1,26 @@
 
 const Sequelize = require('sequelize');
 
-const sequelize = new Sequelize('System', 'newuser', 'admin', {
-  host: 'localhost', // Or your server address
-  dialect: 'mssql', // Specify SQL Server dialect
+
+//localhost
+// const sequelize = new Sequelize('System', 'newuser', 'admin', {
+//   host: 'localhost', // Or your server address
+//   dialect: 'mssql', // Specify SQL Server dialect
+//   dialectOptions: {
+//     options: {
+//       encrypt: true // If using SSL/TLS (recommended)
+//     }
+//   }
+// });
+
+//production
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'mysql', 
   dialectOptions: {
-    options: {
-      encrypt: true // If using SSL/TLS (recommended)
-    }
+      encrypt: true // Use SSL/TLS for security (recommended)
   }
 });
+
 
 module.exports = {
   Sequelize: Sequelize,
