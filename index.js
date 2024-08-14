@@ -305,12 +305,12 @@ app.post('/register', async (req, res) => {
       const { username, password } = req.body;
   
       // Hash the password:
-      //const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
+      const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
         
 
       const user = await User.create({
         username: username,
-        password: password//hashedPassword // Store the hashed password 
+        password: hashedPassword // Store the hashed password 
       }); 
   
       // ... redirect or send a success response ...
