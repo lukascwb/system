@@ -372,8 +372,8 @@ app.post('/logout', (req, res) => {
 
 
 app.get("/keepa", authenticate, function (req, res) {
-   // res.render('keepa');
-   res.render('keepa', { error: req.flash('error')[0] });
+   res.render('keepa');
+   
 });
 
 
