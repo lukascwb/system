@@ -343,8 +343,8 @@ const Api = db.sequelize.define('Api', {
     try {
         await db.sequelize.authenticate();
         console.log('Connection has been established successfully.');
-        //wait Api.sync();
-        await Api.sync({ force: true }); // force
+        await Api.sync();
+        //await Api.sync({ force: true }); // force
         console.log('Api table synchronized.');
     } catch (err) {
         console.error('Unable to connect to the database:', err);

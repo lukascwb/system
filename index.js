@@ -302,21 +302,21 @@ app.get('/register', (req, res) => {
 app.post('/register', async (req, res) => {
     try {
 
-      const { username, password } = req.body;
-  
-      // Hash the password:
-      const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
-        
+        const { username, password } = req.body;
 
-      const user = await User.create({
-        username: username,
-        password: hashedPassword // Store the hashed password 
-      }); 
-  
-      // ... redirect or send a success response ...
-      res.redirect('/login');
+        // Hash the password:
+        const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
 
-      //return res.status(401).send('Error to create.');
+
+        const user = await User.create({
+            username: username,
+            password: hashedPassword // Store the hashed password 
+        });
+
+        // ... redirect or send a success response ...
+        res.redirect('/login');
+
+        //return res.status(401).send('Error to create.');
 
     } catch (error) {
         return res.status(401).send('Error to create.');
@@ -372,8 +372,8 @@ app.post('/logout', (req, res) => {
 
 
 app.get("/keepa", authenticate, function (req, res) {
-   res.render('keepa');
-   
+    res.render('keepa');
+
 });
 
 
@@ -433,34 +433,79 @@ app.post('/upload', authenticate, upload.single('keepaCSV'), async (req, res) =>
             if (records) {
                 for (const record of records) {
                     try {
+                        //processing lines from file
+                        // Skip to next line if Title is empty
+                        if (!record.Title || record.Title.trim() === '') {
+                            console.warn(`Skipping line ${processedLines + 1} due to missing Title.`);
+                            continue; // Go to the next iteration of the loop
+                        }
                         record.Image = Object.values(record).toString().split('.jpg')[0] + '.jpg';
                         record.keepa_id = keepa_id;
+                        // Validate and parse integer columns
+                        record['Sales Rank: Current'] = validateAndParseInt(record['Sales Rank: Current']);
+                        record['Sales Rank: 30 days avg.'] = validateAndParseInt(record['Sales Rank: 30 days avg.']);
+                        record['Sales Rank: 180 days avg.'] = validateAndParseInt(record['Sales Rank: 180 days avg.']);
+                        record['Variation Count'] = validateAndParseInt(record['Variation Count']);
+                        record['Reviews: Ratings - Format Specific'] = record['Reviews: Ratings - Format Specific'] === '' ? null : parseFloat(record['Reviews: Ratings - Format Specific']);
+                        record['Reviews: Review Count - Format Specific'] = validateAndParseInt(record['Reviews: Review Count - Format Specific']);
+                        record['New Offer Count: 30 days avg.'] = validateAndParseInt(record['New Offer Count: 30 days avg.']);
+                        record['New Offer Count: 180 days avg.'] = validateAndParseInt(record['New Offer Count: 180 days avg.']);
+                        record['Bought in past month'] = validateAndParseInt(record['Bought in past month']);
+
                         await KeepaCSV.create(record);
                         processedLines++;
                     } catch (error) {
                         failedLines++;
                         errorMessages.push({ line: processedLines + 1, error: error.message });
                         console.error(`Error processing line ${processedLines + 1}:`, error);
+                        processedLines++;
                     }
                 }
             }
 
-            // if (failedLines > 0) {
-            //     // If there were errors, send the error information
-            //     res.status(200).json({
-            //         message: "CSV upload complete with errors.",
-            //         processed: processedLines,
-            //         failed: failedLines,
-            //         errors: errorMessages,
-            //         link: '/list', // Send just the URL, not the full HTML
-            //         link: 'http://localhost:8081/list'
-            //     });
-            // } else {
-            //     // If no errors, redirect to '/list'
-            //     res.redirect('/list');
-            // }
+            if (failedLines > 0) {
+                // If there were errors, send the error information
+                try {
+                    res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>CSV Upload Results</title>
+    </head>
+    <body>
+      <h1>CSV Upload Results</h1>
+      <p>Processed Lines: ${processedLines}</p>
+      <p>Failed Lines: ${failedLines}</p>
+      <a href="${'/list'}">Go to List</a>
+      <h2>Errors:</h2>
+      <ul>
+        ${errorMessages.map(error => `<li>Line ${error.line}: ${error.error}</li>`).join('')}
+      </ul>
+  
+      <a href="${'/list'}">Go to List</a>
+    </body>
+    </html>
+  `);
+                }
+                catch {
+                    res.status(200).json({
+                        message: "CSV upload complete with errors.",
+                        processed: processedLines,
+                        failed: failedLines,
+                        errors: errorMessages,
+                        link: '/list', // Send just the URL, not the full HTML
+                    });
+                }
 
-            res.redirect('/list');
+
+
+
+            } else {
+                // If no errors, redirect to '/list'
+                res.redirect('/list');
+            }
+
+            //res.redirect('/list');
         });
 
     } catch (error) {
@@ -473,9 +518,18 @@ app.post('/upload', authenticate, upload.single('keepaCSV'), async (req, res) =>
     }
 });
 
+// Helper function to validate and parse integers
+function validateAndParseInt(value) {
+    if (value === '' || value === null || isNaN(value)) {
+        return null; // Or you can set a default value like 0 
+    } else {
+        return parseInt(value, 10);
+    }
+}
 
 
-app.listen(8081, authenticate, function () {
+
+app.listen(8080, authenticate, function () {
     console.log('Servidor Rodando');
 });
 

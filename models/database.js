@@ -1,25 +1,32 @@
-
 const Sequelize = require('sequelize');
+const dotenv = require('dotenv');
+dotenv.config();
 
 
-//localhost
-// const sequelize = new Sequelize('System', 'newuser', 'admin', {
-//   host: 'localhost', // Or your server address
-//   dialect: 'mssql', // Specify SQL Server dialect
-//   dialectOptions: {
-//     options: {
-//       encrypt: true // If using SSL/TLS (recommended)
-//     }
-//   }
-// });
 
-//production
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: 'mysql', 
-  dialectOptions: {
+try {
+  //production
+  var sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'mysql',
+    dialectOptions: {
       encrypt: true // Use SSL/TLS for security (recommended)
-  }
-});
+    }
+  });
+} catch {
+  //localhost
+   sequelize = new Sequelize(process.env.DATABASE_NAME, process.env.DATABASE_USER, process.env.DATABASE_PASSWORD, {
+    host: 'localhost', // Or your server address
+    dialect: 'mysql', // Specify SQL Server dialect
+    dialectOptions: {
+      options: {
+        encrypt: true // If using SSL/TLS (recommended)
+      }
+    }
+  });
+}
+
+
+
 
 
 module.exports = {
@@ -46,16 +53,16 @@ function InsertData1(data) {
 
 
 async function insertGoogleShoppingAPI(data) {
-    await GoogleShoppingAPI.create(data);
-    await InsertData(GoogleShoppingAPI);
+  await GoogleShoppingAPI.create(data);
+  await InsertData(GoogleShoppingAPI);
 }
- 
+
 const GoogleShoppingAPI = sequelize.define('GoogleShoppingAPI', {
   id: {
     type: Sequelize.INTEGER,
     primaryKey: true
   },
-  
+
   keepa_id: {
     type: Sequelize.INTEGER,
     primaryKey: true
@@ -161,7 +168,7 @@ const KeepaCSV = sequelize.define('KeepaCSV', {
     allowNull: true
   },
   'Buy Box: Current': {
-    type: Sequelize.STRING, 
+    type: Sequelize.STRING,
     allowNull: true
   },
   'Buy Box: 90 days avg.': {
@@ -177,7 +184,7 @@ const KeepaCSV = sequelize.define('KeepaCSV', {
     allowNull: true
   },
   'Reviews: Ratings - Format Specific': {
-    type: Sequelize.DECIMAL, 
+    type: Sequelize.DECIMAL,
     allowNull: true
   },
   'Variation Count': {
@@ -189,11 +196,11 @@ const KeepaCSV = sequelize.define('KeepaCSV', {
     allowNull: true
   },
   'New: Current': {
-    type: Sequelize.STRING, 
+    type: Sequelize.STRING,
     allowNull: true
   },
   'New: 30 days avg.': {
-    type: Sequelize.STRING, 
+    type: Sequelize.STRING,
     allowNull: true
   },
   'New: 180 days avg.': {
@@ -201,7 +208,7 @@ const KeepaCSV = sequelize.define('KeepaCSV', {
     allowNull: true
   },
   'New Offer Count: Current': {
-    type: Sequelize.STRING, 
+    type: Sequelize.STRING,
     allowNull: true
   },
   'URL: Amazon': {
@@ -210,14 +217,14 @@ const KeepaCSV = sequelize.define('KeepaCSV', {
   },
   ASIN: {
     type: Sequelize.STRING,
-    allowNull: false 
+    allowNull: false
   },
   Brand: {
     type: Sequelize.STRING,
     allowNull: true
   },
   'Variation Attributes': {
-    type: Sequelize.STRING, 
+    type: Sequelize.STRING,
     allowNull: true
   },
   'Item: Weight (g)': {
@@ -233,7 +240,7 @@ const KeepaCSV = sequelize.define('KeepaCSV', {
     allowNull: true
   },
   'Buy Box: % Amazon 365 days': {
-    type: Sequelize.STRING, 
+    type: Sequelize.STRING,
     allowNull: true
   },
   'New Offer Count: 30 days avg.': {
