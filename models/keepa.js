@@ -14,7 +14,7 @@ const KeepaCSV = db.sequelize.define('KeepaCSV', {
     allowNull: false
   },
   Title: {
-    type: db.Sequelize.STRING,
+    type: db.Sequelize.STRING(4000),
     allowNull: false
   },
   Image: {
@@ -110,7 +110,7 @@ const KeepaCSV = db.sequelize.define('KeepaCSV', {
     allowNull: true
   },
   'Subcategory Sales Ranks': {
-    type: db.Sequelize.STRING, 
+    type: db.Sequelize.STRING(4000), 
     allowNull: true
   }
 

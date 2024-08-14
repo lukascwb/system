@@ -149,7 +149,7 @@ function insertKeepaCSV(data) {
 
 const KeepaCSV = sequelize.define('KeepaCSV', {
   Title: {
-    type: Sequelize.STRING,
+    type: Sequelize.STRING(4000),
     allowNull: false
   },
   Image: {
