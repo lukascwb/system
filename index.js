@@ -77,7 +77,6 @@ app.use(session({
     saveUninitialized: false
 }));
 
-app.use(flash());
 //Config DB
 
 //Body Parser
