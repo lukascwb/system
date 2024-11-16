@@ -423,7 +423,7 @@ app.post('/upload', authenticate, upload.single('keepaCSV'), async (req, res) =>
             if (err) {
                 console.error("Error 500 - CSV parsing error:", err);
                 res.status(500).json({
-                    message: "Error parsing CSV file.",
+                    message: "Error 500 - Error parsing CSV file.",
                     details: err.message,
                     redirect: '/list' // Add redirect suggestion
                 });
