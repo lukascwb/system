@@ -421,7 +421,7 @@ app.post('/upload', authenticate, upload.single('keepaCSV'), async (req, res) =>
             skip_empty_lines: true
         }, async (err, records) => {
             if (err) {
-                console.error("CSV parsing error:", err);
+                console.error("Error 500 - CSV parsing error:", err);
                 res.status(500).json({
                     message: "Error parsing CSV file.",
                     details: err.message,
