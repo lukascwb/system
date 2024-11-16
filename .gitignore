@@ -1,2 +1,4 @@
 .env
 /uploads
+process/env
+node_modules/
