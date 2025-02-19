@@ -18,6 +18,9 @@ const sequelize = require('sequelize');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const bcryptjs = require('bcryptjs');
+const geminiAnalysis = require('./models/geminiAnalysis')
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
 
 
 //const stripBomStream = require('strip-bom-stream');
@@ -114,6 +117,142 @@ app.get('/list', authenticate, async (req, res) => {
     }
 });
 
+app.get('/gemini-analyze', authenticate, async (req, res) => {
+    try {
+        const keepaTitle = "TWIX Minis Size Caramel Chocolate Cookie Candy Bars, Party Size, 40 oz Bag"//req.query.keepaTitle; // Access parameters from req.query
+        const keepaAvgOffer = 26.63;//req.query.keepaAvgOffer;
+        const shoppingResultsJson = ` [
+            {
+            "position": 1,
+            "product_id": "689286227614507268",
+            "title": "Twix Caramel Minis Chocolate Cookie Bar Candy",
+            "product_link": "https://www.google.com/shopping/product/689286227614507268?gl=us&hl=en",
+            "offers": "& more",
+            "offers_link": "https://www.google.com/shopping/product/689286227614507268/offers?gl=us&hl=en&uule=w+CAIQICIjUmF5bmhhbSxNYXNzYWNodXNldHRzLFVuaXRlZCBTdGF0ZXM",
+            "price": "4.99",
+            "extracted_price": 4.99,
+            "original_price": "4.99",
+            "extracted_price": 4.99,
+            "rating": 4.7,
+            "reviews": 14000,
+            "seller": "Target",
+            "thumbnail": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcSydfSBhUnbcENTGhxubB4pyPe0pzJ83R3Du6fNQC0eJDC0uf5fiGyX7PUj4RfoV2-0opLzFuuG4uSaD20_b6BHI8NCRvyY"
+            }]`;//req.query.shoppingResultsJson;
+
+        const correctedJson = shoppingResultsJson.replace(/\u00A0/g, ' '); //Replace all non-breaking spaces with regular space
+        const shoppingResults = JSON.parse(correctedJson);
+
+        if (!keepaTitle || !keepaAvgOffer || !shoppingResultsJson) {
+            return res.status(400).send('Missing required parameters');
+        }
+
+        const analysisResult = await geminiAnalysis.analyzeProduct(keepaTitle, keepaAvgOffer, shoppingResultsJson);
+        console.log(analysisResult); // Log the result to the console.  You can render a template here instead
+        res.send('Analysis complete. Check the console.');
+    } catch (error) {
+        console.error('Error during Gemini analysis:', error);
+        res.status(500).send('Error during Gemini analysis');
+    }
+});
+
+
+
+// !!! INSECURE - DO NOT USE IN PRODUCTION !!!
+//const apiKey = process.env.GOOGLE_API_KEY; // Get API key from environment variables
+/*
+app.get('/generate', authenticate, async function (req, res) {
+    // const prompt = req.query.prompt || "Explain how AI works";
+    // try {
+    //     const genAI = new GoogleGenerativeAI(apiKey);
+    //     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    //     const result = await model.generateContent(prompt);
+    //     const generatedText = result.response.text();
+    //     res.render('generatedText', { text: generatedText });
+    // } catch (error) {
+    //     console.error("Error:", error);
+    //     res.status(500).send("Error generating text");
+    // }
+
+// !!! INSECURE - REPLACE WITH SECURE KEY MANAGEMENT !!!
+    try {
+      const { avgOffer, price, productTitle, seller, position, shoppingResults } = req.query;
+  
+      // Input validation (add more robust checks as needed)
+      if (!avgOffer || !price || !productTitle || !seller || !position || !shoppingResults) {
+        return res.status(400).send('Missing required parameters');
+      }
+  
+      const formattedShoppingResults = JSON.parse(shoppingResults);
+
+      const parts = [
+          {
+              text: `Analyze resale:
+              Avg Offer: ${avgOffer}
+              Cost: ${price}
+              Fees: 8% (<$14.99), 15% else
+              Shipping: $5
+              Profit Min: $2
+              ROI Min: 30%
+              Nearby: Walmart,Target,BJ's Wholesale Club,Costco,CVS Pharmacy,Dollar General,Office Depot,Party City,Sam's Club,Shaw's,Staples,Stop & Shop,Walgreens.com, REI, DICK'S Sporting Goods, Ace Hardware, Cabela's
+
+              Product:
+              Title: ${productTitle}
+              Seller: ${seller}
+              Price: ${price}
+
+              Instructions:
+
+              1. From the PRODUCT TITLE, identify if the product is sold in a multi-pack. Look for keywords like "Pack of", "(# Bags)", "Count", "Individually Wrapped (#)".
+              2. If a multi-pack is identified, extract the quantity per pack (#).
+              3. Calculate the unit cost: ${price} / # (if multi-pack) or ${price} (if individual).
+              4. Calculate total cost: unit cost * # (if multi-pack) or unit cost (if individual).
+              5. Calculate Fees based on ${avgOffer}.
+              6. Calculate Expenses: Shipping + Fees + Total Cost.
+              7. Calculate Profit: ${avgOffer} - Expenses.
+              8. Calculate ROI: (Profit / Total Cost) * 100.
+              9. Is the product profitable (Profit >= Profit Min AND ROI >= ROI Min) AND sold at a nearby store?
+              If yes, output JSON only:
+                "Position": "${position} - ${seller}",
+                "Expenses(Ship, Fee, Price)": "$5.00 + $[FEE] + [PRICE] = $[TOTAL_EXPENSES]",
+                "Profit": "${avgOffer} - $[TOTAL_EXPENSES] = $[PROFIT_AMOUNT]",
+                "ROI": "[ROI_PERCENTAGE]%"
+
+              If the answer to question 9 is YES, output ONLY the following JSON:
+              {
+                "Position": "${position} - ${seller}",
+                "Expenses(Ship, Fee, Price)": "$5.00 + $[FEE] + $[PRICE] = $[TOTAL_EXPENSES]",
+                "Profit": "${avgOffer} - $[TOTAL_EXPENSES] = $[PROFIT_AMOUNT]",
+                "ROI": "[ROI_PERCENTAGE]%"
+              }
+
+              If no:
+              Does not meet criteria`
+          },
+          {
+              text: `input: ${JSON.stringify(formattedShoppingResults)}`,
+          },
+      ];
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const generationConfig = {
+        temperature: 1,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 8192,
+        responseMimeType: "text/plain",
+      };
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts }],
+        generationConfig,
+      });
+      res.render('generatedText', { text: result.response.text() });
+    } catch (error) {
+      console.error("Error:", error);
+      res.status(500).send("Error generating text");
+    }
+  });
+  
+*/
 const ITEMS_PER_PAGE = 10;
 
 app.get('/api/page/:page', authenticate, async function (req, res) { // Make the route handler async
@@ -215,16 +354,6 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                 const weightKeepa = apishopping.getWeight(keepaRecord.Title);
                 const unitKeepa = apishopping.getUnitCount(keepaRecord.Title);
                 console.log('avg ' + avgKeepaPrice + ' u' + unitKeepa + ' w' + weightKeepa + ' t' + keepaRecord.Title)
-                // const api = process.env.GOOGLE_API_KEY;
-                // const genAI = new GoogleGenerativeAI(api);
-
-                // const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                // const prompt = "1+1"
-
-                // const result = await model.generateContent(prompt);
-                // const response = await result.response;
-                // const text = response.text();
-                // console.log("GEMINI: " + text);
 
                 productsAPI.forEach((apiRecord, productIndex) => {
                     //if (productsAPI[keepaIndex].title != 'No Results') {
@@ -234,7 +363,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                         let originalTitle = apiRecord.title;
                         apiRecord.title = " " + apiRecord.title;
                         let storePrice = parseFloat(apiRecord.price.replace('$', '')) * unitKeepa * 2;
-                        console.log('storePrice ' + storePrice + ' avg ' + avgKeepaPrice + ' w' + weightKeepa + ' t' + apiRecord.title)
+                        //console.log('storePrice ' + storePrice + ' avg ' + avgKeepaPrice + ' w' + weightKeepa + ' t' + apiRecord.title)
                         //check Prices
                         if (storePrice < avgKeepaPrice) {
                             apiRecord.title = "💰" + apiRecord.title;

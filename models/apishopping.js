@@ -12,9 +12,9 @@ async function insertProductData(lineKeepa) {
         const url = "https://www.searchapi.io/api/v1/search";
         const params = {
             "engine": "google_shopping",
-            "q": `${lineKeepa.Title}`,
+            "q": `${lineKeepa.Title} near 02721 nearby walmart, target, bjs, Stop & Shop`,
             "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
-            "api_key":process.env.api_key,
+            "api_key": process.env.api_key,
             "tbs": "mr:1,local_avail:1,ss:30"
         };
 
@@ -40,7 +40,7 @@ async function insertProductData(lineKeepa) {
                 position: result.position || null,
                 title: result.title || null,
                 seller: result.seller || null,
-                link: result.link || null,
+                link: result.offers_link || null,
                 price: result.price || null,
                 delivery: result.delivery || null,
                 thumbnail: result.thumbnail || null,
@@ -60,9 +60,7 @@ async function insertProductData(lineKeepa) {
 }
 
 
-
-
-//old function
+////////////////////////OLD FUNCTION NOT BEEN USED
 async function getProductData(tblKeepa) {
     try {
         //console.log(tblKeepa.titleKeepa[0]);
@@ -83,7 +81,7 @@ async function getProductData(tblKeepa) {
  */
 
         //receive array
-        const keepaTitles = tblKeepa.map(record => record.Title);
+        const keepaTitles = tblKeepa.map(record => record.Title) + " nearby";
         ///PROMISSE ALL ------trying
         try {
             // Create an array of promises for each API request:
@@ -95,20 +93,14 @@ async function getProductData(tblKeepa) {
                 const url = "https://www.searchapi.io/api/v1/search";
                 const params = {
                     "engine": "google_shopping",
-                    "q": `${title}`,
+                    "q": `${title} near 02721`,
                     "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
                     "api_key": process.env.api_key,
-                    "tbs": "mr:1,local_avail:1,ss:30"
-
+                    "tbs": "mr:1,local_avail:1,ss:30",
+                    "gl": "us",
                 };
-
-
-
                 //return axios.get(url);
-
                 return axios.get(url, { params });
-
-
             });
 
             const responses = await Promise.all(promises);
@@ -126,7 +118,8 @@ async function getProductData(tblKeepa) {
                     return;
                 }
 
-                const length = response.data.shopping_results.length ? response.data.shopping_results.length > 7 ? 7 : response.data.shopping_results.length : 0;
+                //const length = response.data.shopping_results.length ? response.data.shopping_results.length > 7 ? 7 : response.data.shopping_results.length : 0;
+                
                 for (let i = 0; i < length; i++) {
                     if (i == 0) {
                         let dataGoogleShoppingAPI = {
@@ -146,9 +139,10 @@ async function getProductData(tblKeepa) {
                     let dataGoogleShoppingProducts = {
                         keepa_id: tblKeepa[index].keepa_id, // Replace with actual value
                         position: response.data.shopping_results[i].position || null,
+                        product_id: response.data.shopping_results[i].product_id || null,
                         title: response.data.shopping_results[i].title || null,
                         seller: response.data.shopping_results[i].seller || null,
-                        link: response.data.shopping_results[i].link || null,
+                        link: response.data.shopping_results[i].offers_link || null,
                         price: response.data.shopping_results[i].price || null,
                         delivery: response.data.shopping_results[i].delivery || null,
                         thumbnail: response.data.shopping_results[i].thumbnail || null,
@@ -226,19 +220,19 @@ async function getProductData(tblKeepa) {
 
 function getUnitCount(title) {
     // Regex with improved pattern matching:
-    const regex = /\b(?:\(Pack of (\d+)\)|(?:(\d+)-pack|\/(\d+)\s*(?:[bB]x|[cC]t|[cC]ount|[uU]nits)?|Case(\d+)|of (\d+)|(\d+)\s*(?:count|ct|units|pk|pcs|Bx)))\b/gi; 
-    
+    const regex = /\b(?:\(Pack of (\d+)\)|(?:(\d+)-pack|\/(\d+)\s*(?:[bB]x|[cC]t|[cC]ount|[uU]nits)?|Case(\d+)|of (\d+)|(\d+)\s*(?:count|ct|units|pk|pcs|Bx)))\b/gi;
+
     let match;
     while ((match = regex.exec(title)) !== null) {
-      for (let i = 1; i < match.length; i++) {
-        if (match[i]) {
-          return parseInt(match[i], 10);
+        for (let i = 1; i < match.length; i++) {
+            if (match[i]) {
+                return parseInt(match[i], 10);
+            }
         }
-      }
     }
-  
+
     return 1; // Default to 1 if no unit count is found
-  }
+}
 
 function getWeight(title) {
     // Regex to match patterns like "10 oz", "1.5-ounce", "2.53 Pounds", "2.53 lbs", "2.53 kilograms"
@@ -362,6 +356,10 @@ const Products = db.sequelize.define('Products', {
         type: db.Sequelize.STRING,
         allowNull: false
     },
+    product_id: {
+        type: db.Sequelize.STRING,
+        allowNull: true
+    },
     position: {
         type: db.Sequelize.INTEGER,
         allowNull: true
@@ -401,8 +399,8 @@ const Products = db.sequelize.define('Products', {
     try {
         await db.sequelize.authenticate();
         console.log('Connection has been established successfully.');
-        //await Products.sync();
-        await Products.sync({ force: true }); // force
+        await Products.sync();
+        //await Products.sync({ force: true }); // force
         console.log('Products table synchronized.');
     } catch (err) {
         console.error('Unable to connect to the database:', err);

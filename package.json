@@ -1,9 +1,9 @@
 {
   "dependencies": {
-    "@google/generative-ai": "^0.14.0",
+    "@google/generative-ai": "^0.21.0",
     "@popperjs/core": "^2.11.8",
     "async": "^3.2.5",
-    "axios": "^1.7.2",
+    "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "bootstrap": "^5.3.3",
@@ -33,5 +33,4 @@
   "scripts": {
     "start": "node index.js"
   }
-
 }
