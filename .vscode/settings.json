@@ -8,8 +8,8 @@
             "previewLimit": 50,
             "server": "localhost",
             "driver": "MySQL",
-            "name": "rw",
-            "connectString": "mysql://root:sxaciZmhwDYRetAfjakzcUMKgnDxvojG@roundhouse.proxy.rlwy.net:10655/railway"
+            "name": "rw tigerttron",
+            "connectString": "mysql://root:iKLTpHcKmIDoNeREQxtiNbubMUmCjdDN@junction.proxy.rlwy.net:40793/railway"
         },
         {
             "mysqlOptions": {
@@ -19,8 +19,8 @@
             "previewLimit": 50,
             "server": "localhost",
             "driver": "MySQL",
-            "name": "rw tigerttron",
-            "connectString": "mysql://root:iKLTpHcKmIDoNeREQxtiNbubMUmCjdDN@junction.proxy.rlwy.net:40793/railway"
+            "name": "rw Production",
+            "connectString": "mysql://root:sxaciZmhwDYRetAfjakzcUMKgnDxvojG@roundhouse.proxy.rlwy.net:10655/railway"
         }
     ]
 }

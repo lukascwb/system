@@ -110,10 +110,10 @@ const GoogleShoppingProducts = sequelize.define('GoogleShoppingProducts', {
     type: Sequelize.INTEGER,
     primaryKey: true
   },
-  product_id: {
-    type: Sequelize.INTEGER,
-    primaryKey: true
-  },
+  // product_id: {
+  //   type: Sequelize.INTEGER,
+  //   primaryKey: true
+  // },
   position: {
     type: Sequelize.INTEGER,
     allowNull: true

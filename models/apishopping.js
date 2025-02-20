@@ -139,7 +139,7 @@ async function getProductData(tblKeepa) {
                     let dataGoogleShoppingProducts = {
                         keepa_id: tblKeepa[index].keepa_id, // Replace with actual value
                         position: response.data.shopping_results[i].position || null,
-                        product_id: response.data.shopping_results[i].product_id || null,
+                        //product_id: response.data.shopping_results[i].product_id || null,
                         title: response.data.shopping_results[i].title || null,
                         seller: response.data.shopping_results[i].seller || null,
                         link: response.data.shopping_results[i].offers_link || null,

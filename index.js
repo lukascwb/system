@@ -124,7 +124,6 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
         const shoppingResultsJson = ` [
             {
             "position": 1,
-            "product_id": "689286227614507268",
             "title": "Twix Caramel Minis Chocolate Cookie Bar Candy",
             "product_link": "https://www.google.com/shopping/product/689286227614507268?gl=us&hl=en",
             "offers": "& more",
