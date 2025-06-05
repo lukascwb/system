@@ -290,17 +290,93 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
             }
 
             // Add the new columns
-            let newCurrent = Number(data['New: Current'].replace('$', ''));
-            let new30DaysAvg = Number(data['New: 30 days avg.'].replace('$', ''));
-            let new180DaysAvg = Number(data['New: 180 days avg.'].replace('$', ''));
-            data['New: Average'] = ((newCurrent + new30DaysAvg + new180DaysAvg) / 3).toFixed(2);
 
-            let buyBoxCurrent = Number(data['Buy Box: Current'].replace('$', ''));
-            let buyBox90DaysAvg = Number(data['Buy Box: 90 days avg.'].replace('$', ''));
-            data['Buy Box: Average'] = ((buyBoxCurrent + buyBox90DaysAvg) / 2).toFixed(2);
+            let newCurrent;
+            try {
+                newCurrent = Number(data['New: Current'].replace('$', ''));
+            } catch (error) {
+                console.error("Error processing 'New: Current':", error);
+                newCurrent = 0; // Default or handle error as needed
+            }
 
-            data['New: Price Sellable'] = Number((data['New: Average'] * 0.4).toFixed(2));
-            data['Buy Box: Price Sellable'] = Number((data['Buy Box: Average'] * 0.4).toFixed(2));
+            let new30DaysAvg;
+            try {
+                new30DaysAvg = Number(data['New: 30 days avg.'].replace('$', ''));
+            } catch (error) {
+                console.error("Error processing 'New: 30 days avg.':", error);
+                new30DaysAvg = 0; // Default or handle error as needed
+            }
+
+            let new180DaysAvg;
+            try {
+                new180DaysAvg = Number(data['New: 180 days avg.'].replace('$', ''));
+            } catch (error) {
+                console.error("Error processing 'New: 180 days avg.':", error);
+                new180DaysAvg = 0; // Default or handle error as needed
+            }
+
+            let newAverageRaw = (newCurrent + new30DaysAvg + new180DaysAvg) / 3;
+            try {
+                data['New: Average'] = newAverageRaw.toFixed(2);
+            } catch (error) {
+                console.error("Error processing 'New: Average' toFixed:", error);
+                data['New: Average'] = 0; // Default or handle error as needed
+            }
+
+
+            let buyBoxCurrent;
+            try {
+                buyBoxCurrent = Number(data['Buy Box: Current'].replace('$', ''));
+            } catch (error) {
+                console.error("Error processing 'Buy Box: Current':", error);
+                buyBoxCurrent = 0; // Default or handle error as needed
+            }
+
+            let buyBox90DaysAvg;
+            try {
+                buyBox90DaysAvg = Number(data['Buy Box: 90 days avg.'].replace('$', ''));
+            } catch (error) {
+                console.error("Error processing 'Buy Box: 90 days avg.':", error);
+                buyBox90DaysAvg = 0; // Default or handle error as needed
+            }
+
+            let buyBoxAverageRaw = (buyBoxCurrent + buyBox90DaysAvg) / 2;
+            try {
+                data['Buy Box: Average'] = buyBoxAverageRaw.toFixed(2);
+            } catch (error) {
+                console.error("Error processing 'Buy Box: Average' toFixed:", error);
+                data['Buy Box: Average'] = 0; // Default or handle error as needed
+            }
+
+
+            let newPriceSellableRaw;
+            try {
+                newPriceSellableRaw = Number(data['New: Average']) * 0.4;
+            } catch (error) {
+                console.error("Error processing 'New: Average' for sellable calculation:", error);
+                newPriceSellableRaw = 0;
+            }
+            try {
+                data['New: Price Sellable'] = Number(newPriceSellableRaw.toFixed(2));
+            } catch (error) {
+                console.error("Error processing 'New: Price Sellable' toFixed:", error);
+                data['New: Price Sellable'] = 0; // Default or handle error as needed
+            }
+
+
+            let buyBoxPriceSellableRaw;
+            try {
+                buyBoxPriceSellableRaw = Number(data['Buy Box: Average']) * 0.4;
+            } catch (error) {
+                console.error("Error processing 'Buy Box: Average' for sellable calculation:", error);
+                buyBoxPriceSellableRaw = 0;
+            }
+            try {
+                data['Buy Box: Price Sellable'] = Number(buyBoxPriceSellableRaw.toFixed(2));
+            } catch (error) {
+                console.error("Error processing 'Buy Box: Price Sellable' toFixed:", error);
+                data['Buy Box: Price Sellable'] = 0; // Default or handle error as needed
+            }
 
 
             return data;
