@@ -437,9 +437,16 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                         const apiWeigth = apishopping.getWeight(apiRecord.title);
                         let originalTitle = apiRecord.title;
                         apiRecord.title = " " + apiRecord.title;
-                        let storePrice = parseFloat(apiRecord.price.replace('$', '')) * unitKeepa * 2;
+                        let storePrice = 0;
+                        try {
+                             storePrice = parseFloat(apiRecord.price.replace('$', '')) * unitKeepa * 2;
+                        } catch (error) {
+                            console.error("Error processing 'storePrice':", error);
+                            storePrice = 0; // Default or handle error as needed
+                        }
                         //console.log('storePrice ' + storePrice + ' avg ' + avgKeepaPrice + ' w' + weightKeepa + ' t' + apiRecord.title)
                         //check Prices
+                        if (storePrice > 0)
                         if (storePrice < avgKeepaPrice) {
                             apiRecord.title = "💰" + apiRecord.title;
                             check += 1;
