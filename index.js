@@ -20,6 +20,7 @@ const session = require('express-session');
 const bcryptjs = require('bcryptjs');
 const geminiAnalysis = require('./models/geminiAnalysis')
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { compararTitulosGemini } = require('./models/geminiCompare');
 
 
 
@@ -421,6 +422,8 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                             ['position', 'ASC'],
                         ]
                     });
+                    // Garante que cada produto tenha o campo 'id' (serializa para JSON)
+                    productsAPI = productsAPI.map(p => p.toJSON());
                 }
 
                 //custom title with emojis
@@ -504,6 +507,61 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
     } catch (error) {
         console.error('Error:', error);
         res.status(500).send('Error fetching data - ' + error.message);
+    }
+});
+
+app.get('/api/ia-compare/:keepa_id', authenticate, async (req, res) => {
+    console.log('[IA] Iniciando análise IA para keepa_id:', req.params.keepa_id);
+    try {
+        const keepa_id = req.params.keepa_id;
+
+        // Busca o título do Keepa
+        console.log('[IA] Buscando título do Keepa...');
+        const keepaRecord = await KeepaCSV.findOne({ where: { keepa_id } });
+        if (!keepaRecord) {
+            console.error('[IA] Keepa não encontrado:', keepa_id);
+            return res.status(404).json({ error: 'Keepa não encontrado' });
+        }
+        console.log('[IA] Título do Keepa encontrado:', keepaRecord.Title);
+
+        // Busca todos os produtos relacionados
+        console.log('[IA] Buscando produtos relacionados...');
+        const products = await apishopping.Products.findAll({ where: { keepa_id } });
+        console.log(`[IA] ${products.length} produtos encontrados.`);
+
+        // Para cada produto, compara com o título do Keepa
+        const resultados = [];
+        for (const product of products) {
+            try {
+                console.log(`[IA] Enviando para Gemini: Keepa: "${keepaRecord.Title}" | Produto: "${product.title}"`);
+                const status = await compararTitulosGemini(keepaRecord.Title, product.title);
+                // Print detalhado do resultado IA
+                console.log(`[IA-RESULTADO] Keepa: "${keepaRecord.Title}" | Produto: "${product.title}" | Resultado IA: ${status}`);
+                resultados.push({
+                    id: product.id,
+                    title: product.title,
+                    price: product.price,
+                    statusIA: status
+                });
+            } catch (errGemini) {
+                console.error(`[IA] Falha ao consultar Gemini para produto: ${product.title}`, errGemini);
+                resultados.push({
+                    id: product.id,
+                    title: product.title,
+                    price: product.price,
+                    statusIA: 'Erro GEMINI' 
+                });
+            }
+        }
+
+        console.log('[IA] Análise IA finalizada. Enviando resposta ao frontend.');
+        res.json({
+            keepaTitle: keepaRecord.Title,
+            produtos: resultados
+        });
+    } catch (error) {
+        console.error('[IA] Erro na comparação IA:', error);
+        res.status(500).json({ error: 'Erro interno na comparação IA' });
     }
 });
 

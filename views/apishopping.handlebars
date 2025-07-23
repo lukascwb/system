@@ -54,16 +54,16 @@
         </tr>
         <tr>
           <td colspan="6">
-            <div class="d-flex flex-wrap">
+            <div class="d-flex flex-wrap" id="products-ia-{{@index}}">
               {{#each productsAPI}}
               <div class="product-result ">
                 <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
                 <a style="color: white;" target="_blank" href="{{link}}">
-                  <p class="text-wrap">{{title}} - {{price}} - {{seller}} </p>
+                  <p class="text-wrap ia-title" data-product-id="{{id}}">{{title}} - {{price}} - {{seller}}</p>
                 </a>
+                <span class="ia-status" id="ia-status-{{id}}"></span>
               </div>
               {{/each}}
-
               <br>
             </div>
           </td>
@@ -165,8 +165,9 @@
   }
 </style>
 
-<scrip>
-  document.addEventListener('DOMContentLoaded', function() {
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('[FRONT] Script carregado e DOM pronto.');
   const images = document.querySelectorAll('.zoom');
 
   images.forEach(img => {
@@ -204,5 +205,34 @@
       }
     });
   });
+
+  // --- IA Gemini Integration ---
+  const keepaId = new URLSearchParams(window.location.search).get('keepa_id');
+  console.log('[FRONT] keepaId extraído:', keepaId);
+  if (keepaId) {
+    fetch(`/api/ia-compare/${keepaId}`)
+      .then(res => {
+        console.log('[FRONT] Resposta recebida da API IA:', res);
+        return res.json();
+      })
+      .then(data => {
+        console.log('[FRONT] Dados IA recebidos:', data);
+        if (data && data.produtos) {
+          data.produtos.forEach(prod => {
+            const el = document.getElementById('ia-status-' + prod.id);
+            if (el) {
+              if (prod.statusIA === 'Aprovado') {
+                el.innerHTML = '✅ Aprovado IA';
+              } else {
+                el.innerHTML = '❌ Reprovado IA';
+              }
+            }
+          });
+        }
+      })
+      .catch(err => {
+        console.error('[FRONT] Erro ao buscar status IA:', err);
+      });
+  }
 });
-</scrip>
+</script>
