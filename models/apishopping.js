@@ -40,7 +40,7 @@ async function insertProductData(lineKeepa) {
                 position: result.position || null,
                 title: result.title || null,
                 seller: result.seller || null,
-                link: result.offers_link || null,
+                link: result.product_link || null,
                 price: result.price || null,
                 delivery: result.delivery || null,
                 thumbnail: result.thumbnail || null,
