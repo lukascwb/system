@@ -55,6 +55,9 @@ app.engine('handlebars', handlebars.engine({
         dec: function (value) {
             return value - 1;
         },
+        eq: function (a, b) {
+            return a === b;
+        },
         checkAmazonBB: function (AmazonBB) {
             let percentage = Number(AmazonBB.replace('%', ''));
             return percentage > 50 ? '❎' : '☑️';
@@ -119,7 +122,12 @@ app.get('/list', authenticate, async (req, res) => {
 
 app.get('/gemini-analyze', authenticate, async (req, res) => {
     try {
-        // Buscar todos os keepa_ids disponíveis
+        const keepaId = req.query.keepa_id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
+        // Buscar todos os keepa_ids disponíveis para o dropdown
         const keepaRecords = await KeepaCSV.findAll({
             attributes: ['keepa_id', [sequelize.fn('max', sequelize.col('createdAt')), 'max_created']],
             group: ['keepa_id'],
@@ -127,11 +135,82 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
         });
 
         const keepaIds = keepaRecords.map(record => record.keepa_id);
+
+        // Se não há keepa_id selecionado, apenas mostrar a página de seleção
+        if (!keepaId) {
+            return res.render('gemini-analyze', { 
+                keepaIds: keepaIds,
+                keepaProducts: [],
+                currentPage: 1,
+                totalPages: 0,
+                selectedKeepaId: null
+            });
+        }
+
+        // Query principal para buscar produtos do keepa_id selecionado
+        const query = `
+            SELECT
+                products.keepa_id,
+                keepacsvs.Title AS keepa_product,
+                keepacsvs.\`New: Current\` AS keepa_current,
+                products.title AS go_shopp_title,
+                products.link AS go_shopp_link,
+                products.seller AS go_shopp_seller,
+                products.price AS go_shopp_price
+            FROM products
+            LEFT JOIN apis ON products.api_id = apis.id
+            LEFT JOIN keepacsvs ON TRIM(SUBSTRING_INDEX(apis.q, ' near', 1)) = keepacsvs.Title
+            WHERE products.keepa_id = ?
+            ORDER BY keepacsvs.Title, products.position
+        `;
+
+        // Executar a query
+        const results = await db.sequelize.query(query, {
+            replacements: [keepaId],
+            type: db.sequelize.QueryTypes.SELECT
+        });
+
+        // Agrupar os resultados por keepa_product
+        const groupedProducts = {};
+        results.forEach(row => {
+            if (!groupedProducts[row.keepa_product]) {
+                groupedProducts[row.keepa_product] = {
+                    keepa_product: row.keepa_product,
+                    keepa_current: row.keepa_current,
+                    products: []
+                };
+            }
+            
+            if (row.go_shopp_title) {
+                groupedProducts[row.keepa_product].products.push({
+                    go_shopp_title: row.go_shopp_title,
+                    go_shopp_link: row.go_shopp_link,
+                    go_shopp_seller: row.go_shopp_seller,
+                    go_shopp_price: row.go_shopp_price
+                });
+            }
+        });
+
+        // Converter para array e aplicar paginação
+        const allKeepaProducts = Object.values(groupedProducts);
+        const totalKeepaProducts = allKeepaProducts.length;
+        const totalPages = Math.ceil(totalKeepaProducts / limit);
         
-        res.render('gemini-analyze', { keepaIds: keepaIds });
+        const keepaProducts = allKeepaProducts.slice(offset, offset + limit);
+
+        res.render('gemini-analyze', {
+            keepaIds: keepaIds,
+            keepaProducts: keepaProducts,
+            currentPage: page,
+            totalPages: totalPages,
+            selectedKeepaId: keepaId,
+            hasPrevPage: page > 1,
+            hasNextPage: page < totalPages
+        });
+
     } catch (error) {
-        console.error('Error fetching keepa IDs:', error);
-        res.status(500).send('Error fetching keepa IDs: ' + error.message);
+        console.error('Error during Gemini analysis:', error);
+        res.status(500).send('Error during Gemini analysis: ' + error.message);
     }
 });
 
