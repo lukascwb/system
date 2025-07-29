@@ -23,11 +23,18 @@
                             </select>
                         </div>
                         
-                        <div class="d-grid">
+                        <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg">
                                 <i class="fas fa-search me-2"></i>
-                                Analisar
+                                Buscar Produtos
                             </button>
+                            
+                            {{#if selectedKeepaId}}
+                                <a href="/gemini-analyze?keepa_id={{selectedKeepaId}}&analyze=true" class="btn btn-success btn-lg" id="analyzeBtn">
+                                    <i class="fas fa-robot me-2"></i>
+                                    Analisar com Gemini
+                                </a>
+                            {{/if}}
                         </div>
                     </form>
 
@@ -53,6 +60,7 @@
                                                     <th>Título do produto</th>
                                                     <th>Seller</th>
                                                     <th>Preço</th>
+                                                    <th>Status</th>
                                                     <th>Link</th>
                                                 </tr>
                                             </thead>
@@ -67,6 +75,36 @@
                                                         </td>
                                                         <td>
                                                             <strong class="text-success">${{go_shopp_price}}</strong>
+                                                        </td>
+                                                        <td>
+                                                            {{#if status}}
+                                                                {{#if (eq status "aprovado")}}
+                                                                    <span class="badge bg-success">
+                                                                        <i class="fas fa-check me-1"></i>
+                                                                        Aprovado
+                                                                    </span>
+                                                                {{else if (eq status "reprovado")}}
+                                                                    <span class="badge bg-danger">
+                                                                        <i class="fas fa-times me-1"></i>
+                                                                        Reprovado
+                                                                    </span>
+                                                                {{else if (eq status "erro_gemini")}}
+                                                                    <span class="badge bg-warning text-dark">
+                                                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                                                        Erro Gemini
+                                                                    </span>
+                                                                {{else}}
+                                                                    <span class="badge bg-info">
+                                                                        <i class="fas fa-question me-1"></i>
+                                                                        {{status}}
+                                                                    </span>
+                                                                {{/if}}
+                                                            {{else}}
+                                                                <span class="badge bg-secondary">
+                                                                    <i class="fas fa-clock me-1"></i>
+                                                                    Pendente
+                                                                </span>
+                                                            {{/if}}
                                                         </td>
                                                         <td>
                                                             <a href="{{go_shopp_link}}" target="_blank" class="btn btn-sm btn-outline-primary">
@@ -216,6 +254,20 @@
 document.getElementById('keepa_id').addEventListener('change', function() {
     if (this.value) {
         document.getElementById('geminiForm').submit();
+    }
+});
+
+// Adicionar indicador de carregamento para análise do Gemini
+document.addEventListener('DOMContentLoaded', function() {
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', function() {
+            // Mostrar indicador de carregamento
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analisando...';
+            this.disabled = true;
+            this.classList.remove('btn-success');
+            this.classList.add('btn-warning');
+        });
     }
 });
 </script> 

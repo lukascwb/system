@@ -62,15 +62,18 @@ For each product in the shopping results:
             contents: [
                 {
                     role: 'user',
-                    content: prompt, //Use 'content' here
+                    parts: [
+                        {
+                            text: prompt
+                        }
+                    ]
                 }
             ],
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 2048,
                 topP: 0.95,
-                topK: 40,
-                responseMimeType: 'text/plain'
+                topK: 40
             }
         };
 
@@ -88,7 +91,7 @@ For each product in the shopping results:
         }
 
         const data = await response.json();
-        return data.candidates[0].content; // Access the generated text
+        return data.candidates[0].content.parts[0].text; // Access the generated text
 
     } catch (error) {
         console.error("Error generating Gemini analysis:", error);
@@ -96,6 +99,91 @@ For each product in the shopping results:
     }
 }
 
-module.exports = { analyzeProduct };
+async function analyzeProductSimilarity(keepaTitle, productTitle) {
+    try {
+        const prompt = `Analise se o produto do Google Shopping é similar ao produto do Keepa.
+
+Produto Keepa: "${keepaTitle}"
+Produto Google Shopping: "${productTitle}"
+
+REGRAS RIGOROSAS:
+1. Aprove APENAS se for EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
+2. Reprove se:
+   - Marca diferente (ex: 3M vs Filtrete)
+   - Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
+   - Produto completamente diferente
+   - Qualquer dúvida
+
+EXEMPLOS ESPECÍFICOS:
+APROVADO:
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" → Aprovado
+
+REPROVADO:
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Ultimate Allergen Reduction Filters" → Reprovado (marca diferente)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Filtrete Micro Allergen Defense" → Reprovado (marca diferente)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 20x20x1 Hvac Furnace Air Filter MPR 800" → Reprovado (modelo diferente)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 16 in x 20 in x 1 in Micro Allergen Defense" → Reprovado (modelo diferente)
+
+SEJA MUITO CONSERVADOR. Em caso de dúvida, sempre reprove.
+
+Resposta:`;
+
+        const API_KEY = process.env.GOOGLE_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+
+        const requestData = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: prompt
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.0,
+                maxOutputTokens: 20,
+                topP: 0.1,
+                topK: 1
+            }
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Gemini API request failed with status ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        const result = data.candidates[0].content.parts[0].text.trim();
+        
+        console.log(`Gemini retornou: "${result}"`);
+        
+        // Validar se o resultado é exatamente "Aprovado" ou "Reprovado"
+        if (result === "Aprovado") {
+            return "aprovado";
+        } else if (result === "Reprovado") {
+            return "reprovado";
+        } else {
+            // Se não retornou o esperado, lançar erro com detalhes
+            throw new Error(`Resposta inesperada do Gemini: "${result}". Esperado: "Aprovado" ou "Reprovado"`);
+        }
+
+    } catch (error) {
+        console.error("Error analyzing product similarity:", error);
+        return "reprovado"; // Em caso de erro, retorna reprovado por segurança
+    }
+}
+
+module.exports = { analyzeProduct, analyzeProductSimilarity };
 
 

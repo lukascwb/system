@@ -380,6 +380,11 @@ const Products = db.sequelize.define('Products', {
         type: db.Sequelize.STRING,
         allowNull: true
     },
+    status: {
+        type: db.Sequelize.STRING,
+        allowNull: true,
+        defaultValue: null
+    },
     order_fullfillmed_method: {
         type: db.Sequelize.STRING,
         allowNull: true

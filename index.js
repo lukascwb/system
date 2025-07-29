@@ -20,6 +20,7 @@ const session = require('express-session');
 const bcryptjs = require('bcryptjs');
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { analyzeProductSimilarity } = require('./models/geminiAnalysis');
 
 
 
@@ -151,12 +152,14 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
         const query = `
             SELECT DISTINCT
                 products.keepa_id,
+                products.id AS product_id,
                 keepacsvs.Title AS keepa_product,
                 keepacsvs.\`New: Current\` AS keepa_current,
                 products.title AS go_shopp_title,
                 products.link AS go_shopp_link,
                 products.seller AS go_shopp_seller,
                 products.price AS go_shopp_price,
+                products.status,
                 products.position
             FROM products
             LEFT JOIN apis ON products.api_id = apis.id
@@ -170,6 +173,64 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
             replacements: [keepaId],
             type: db.sequelize.QueryTypes.SELECT
         });
+
+        // Verificar se é uma análise do Gemini (quando há parâmetro analyze=true)
+        const shouldAnalyze = req.query.analyze === 'true';
+        
+        if (shouldAnalyze) {
+            console.log('Iniciando análise do Gemini para keepa_id:', keepaId);
+            
+            // Processar cada produto com o Gemini
+            for (const row of results) {
+                if (row.go_shopp_title && row.keepa_product) {
+                    try {
+                        // Analisar similaridade com o Gemini
+                        console.log(`Analisando produto ${row.product_id}:`);
+                        console.log(`  Keepa: "${row.keepa_product}"`);
+                        console.log(`  Shopping: "${row.go_shopp_title}"`);
+                        
+                        const status = await analyzeProductSimilarity(row.keepa_product, row.go_shopp_title);
+                        
+                        // Atualizar o status no banco de dados
+                        await apishopping.Products.update(
+                            { status: status },
+                            { where: { id: row.product_id } }
+                        );
+                        
+                        console.log(`  Resultado: ${status}`);
+                        
+                        // Aguardar um pouco para não sobrecarregar a API
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                    } catch (error) {
+                        console.error('Erro ao analisar produto:', error);
+                        
+                        // Se for erro específico do Gemini, marcar como erro
+                        if (error.message.includes('Resposta inesperada do Gemini') || error.message.includes('Gemini API request failed')) {
+                            await apishopping.Products.update(
+                                { status: 'erro_gemini' },
+                                { where: { id: row.product_id } }
+                            );
+                            console.error(`Erro específico do Gemini para produto ${row.product_id}:`, error.message);
+                        } else {
+                            // Para outros erros, marcar como reprovado
+                            await apishopping.Products.update(
+                                { status: 'reprovado' },
+                                { where: { id: row.product_id } }
+                            );
+                        }
+                    }
+                }
+            }
+            
+            // Recarregar os dados após a análise
+            const updatedResults = await db.sequelize.query(query, {
+                replacements: [keepaId],
+                type: db.sequelize.QueryTypes.SELECT
+            });
+            results.length = 0;
+            results.push(...updatedResults);
+        }
 
         // Agrupar os resultados por keepa_product
         const groupedProducts = {};
@@ -194,7 +255,8 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
                         go_shopp_title: row.go_shopp_title,
                         go_shopp_link: row.go_shopp_link,
                         go_shopp_seller: row.go_shopp_seller,
-                        go_shopp_price: row.go_shopp_price
+                        go_shopp_price: row.go_shopp_price,
+                        status: row.status || null
                     });
                 }
             }
