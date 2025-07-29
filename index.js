@@ -149,14 +149,15 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
 
         // Query principal para buscar produtos do keepa_id selecionado
         const query = `
-            SELECT
+            SELECT DISTINCT
                 products.keepa_id,
                 keepacsvs.Title AS keepa_product,
                 keepacsvs.\`New: Current\` AS keepa_current,
                 products.title AS go_shopp_title,
                 products.link AS go_shopp_link,
                 products.seller AS go_shopp_seller,
-                products.price AS go_shopp_price
+                products.price AS go_shopp_price,
+                products.position
             FROM products
             LEFT JOIN apis ON products.api_id = apis.id
             LEFT JOIN keepacsvs ON TRIM(SUBSTRING_INDEX(apis.q, ' near', 1)) = keepacsvs.Title
@@ -182,12 +183,20 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
             }
             
             if (row.go_shopp_title) {
-                groupedProducts[row.keepa_product].products.push({
-                    go_shopp_title: row.go_shopp_title,
-                    go_shopp_link: row.go_shopp_link,
-                    go_shopp_seller: row.go_shopp_seller,
-                    go_shopp_price: row.go_shopp_price
-                });
+                // Verificar se o produto já existe para evitar duplicatas
+                const productExists = groupedProducts[row.keepa_product].products.some(
+                    product => product.go_shopp_title === row.go_shopp_title && 
+                               product.go_shopp_seller === row.go_shopp_seller
+                );
+                
+                if (!productExists) {
+                    groupedProducts[row.keepa_product].products.push({
+                        go_shopp_title: row.go_shopp_title,
+                        go_shopp_link: row.go_shopp_link,
+                        go_shopp_seller: row.go_shopp_seller,
+                        go_shopp_price: row.go_shopp_price
+                    });
+                }
             }
         });
 
