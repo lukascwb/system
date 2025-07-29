@@ -18,7 +18,7 @@ const sequelize = require('sequelize');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const bcryptjs = require('bcryptjs');
-const geminiAnalysis = require('./models/geminiAnalysis')
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 
@@ -119,38 +119,19 @@ app.get('/list', authenticate, async (req, res) => {
 
 app.get('/gemini-analyze', authenticate, async (req, res) => {
     try {
-        const keepaTitle = "TWIX Minis Size Caramel Chocolate Cookie Candy Bars, Party Size, 40 oz Bag"//req.query.keepaTitle; // Access parameters from req.query
-        const keepaAvgOffer = 26.63;//req.query.keepaAvgOffer;
-        const shoppingResultsJson = ` [
-            {
-            "position": 1,
-            "title": "Twix Caramel Minis Chocolate Cookie Bar Candy",
-            "product_link": "https://www.google.com/shopping/product/689286227614507268?gl=us&hl=en",
-            "offers": "& more",
-            "offers_link": "https://www.google.com/shopping/product/689286227614507268/offers?gl=us&hl=en&uule=w+CAIQICIjUmF5bmhhbSxNYXNzYWNodXNldHRzLFVuaXRlZCBTdGF0ZXM",
-            "price": "4.99",
-            "extracted_price": 4.99,
-            "original_price": "4.99",
-            "extracted_price": 4.99,
-            "rating": 4.7,
-            "reviews": 14000,
-            "seller": "Target",
-            "thumbnail": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcSydfSBhUnbcENTGhxubB4pyPe0pzJ83R3Du6fNQC0eJDC0uf5fiGyX7PUj4RfoV2-0opLzFuuG4uSaD20_b6BHI8NCRvyY"
-            }]`;//req.query.shoppingResultsJson;
+        // Buscar todos os keepa_ids disponíveis
+        const keepaRecords = await KeepaCSV.findAll({
+            attributes: ['keepa_id', [sequelize.fn('max', sequelize.col('createdAt')), 'max_created']],
+            group: ['keepa_id'],
+            order: [[sequelize.literal('max_created'), 'DESC']]
+        });
 
-        const correctedJson = shoppingResultsJson.replace(/\u00A0/g, ' '); //Replace all non-breaking spaces with regular space
-        const shoppingResults = JSON.parse(correctedJson);
-
-        if (!keepaTitle || !keepaAvgOffer || !shoppingResultsJson) {
-            return res.status(400).send('Missing required parameters');
-        }
-
-        const analysisResult = await geminiAnalysis.analyzeProduct(keepaTitle, keepaAvgOffer, shoppingResultsJson);
-        console.log(analysisResult); // Log the result to the console.  You can render a template here instead
-        res.send('Analysis complete. Check the console.');
+        const keepaIds = keepaRecords.map(record => record.keepa_id);
+        
+        res.render('gemini-analyze', { keepaIds: keepaIds });
     } catch (error) {
-        console.error('Error during Gemini analysis:', error);
-        res.status(500).send('Error during Gemini analysis');
+        console.error('Error fetching keepa IDs:', error);
+        res.status(500).send('Error fetching keepa IDs: ' + error.message);
     }
 });
 
