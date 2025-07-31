@@ -385,6 +385,11 @@ const Products = db.sequelize.define('Products', {
         allowNull: true,
         defaultValue: null
     },
+    motivo_recusa: {
+        type: db.Sequelize.TEXT,
+        allowNull: true,
+        defaultValue: null
+    },
     order_fullfillmed_method: {
         type: db.Sequelize.STRING,
         allowNull: true
@@ -404,7 +409,20 @@ const Products = db.sequelize.define('Products', {
     try {
         await db.sequelize.authenticate();
         console.log('Connection has been established successfully.');
-        await Products.sync();
+        await Products.sync({ alter: true }); // Alter to add new columns
+        
+        // Verificar se a coluna motivo_recusa existe, se não, criar manualmente
+        try {
+            await db.sequelize.query('SELECT motivo_recusa FROM Products LIMIT 1');
+            console.log('Coluna motivo_recusa já existe.');
+        } catch (error) {
+            if (error.message.includes('Unknown column')) {
+                console.log('Criando coluna motivo_recusa...');
+                await db.sequelize.query('ALTER TABLE Products ADD COLUMN motivo_recusa TEXT');
+                console.log('Coluna motivo_recusa criada com sucesso.');
+            }
+        }
+        
         //await Products.sync({ force: true }); // force
         console.log('Products table synchronized.');
     } catch (err) {

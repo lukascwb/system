@@ -61,6 +61,7 @@
                                                     <th>Seller</th>
                                                     <th>Preço</th>
                                                     <th>Status</th>
+                                                    <th>Motivo Negado</th>
                                                     <th>Link</th>
                                                 </tr>
                                             </thead>
@@ -104,6 +105,13 @@
                                                                     <i class="fas fa-clock me-1"></i>
                                                                     Pendente
                                                                 </span>
+                                                            {{/if}}
+                                                        </td>
+                                                        <td>
+                                                            {{#if motivo_recusa}}
+                                                                <small class="text-danger">{{motivo_recusa}}</small>
+                                                            {{else}}
+                                                                <span class="text-muted">-</span>
                                                             {{/if}}
                                                         </td>
                                                         <td>

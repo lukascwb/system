@@ -160,6 +160,7 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
                 products.seller AS go_shopp_seller,
                 products.price AS go_shopp_price,
                 products.status,
+                products.motivo_recusa,
                 products.position
             FROM products
             LEFT JOIN apis ON products.api_id = apis.id
@@ -202,7 +203,8 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
                         go_shopp_link: row.go_shopp_link,
                         go_shopp_seller: row.go_shopp_seller,
                         go_shopp_price: row.go_shopp_price,
-                        status: row.status || null
+                        status: row.status || null,
+                        motivo_recusa: row.motivo_recusa || null
                     });
                 }
             }
@@ -220,19 +222,27 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
                             console.log(`Analisando produto ${product.product_id}:`);
                             console.log(`  Keepa: "${keepaProduct.keepa_product}"`);
                             console.log(`  Shopping: "${product.go_shopp_title}"`);
+                            console.log(`  Vendedor: "${product.go_shopp_seller}"`);
                             
-                            const status = await analyzeProductSimilarity(keepaProduct.keepa_product, product.go_shopp_title);
+                            const result = await analyzeProductSimilarity(keepaProduct.keepa_product, product.go_shopp_title, product.go_shopp_seller);
                             
-                            // Atualizar o status no banco de dados
+                            // Atualizar o status e motivo no banco de dados
                             await apishopping.Products.update(
-                                { status: status },
+                                { 
+                                    status: result.status,
+                                    motivo_recusa: result.motivo
+                                },
                                 { where: { id: product.product_id } }
                             );
                             
-                            // Atualizar o status no objeto local também
-                            product.status = status;
+                            // Atualizar o status e motivo no objeto local também
+                            product.status = result.status;
+                            product.motivo_recusa = result.motivo;
                             
-                            console.log(`  Resultado: ${status}`);
+                            console.log(`  Resultado: ${result.status}`);
+                            if (result.motivo) {
+                                console.log(`  Motivo: ${result.motivo}`);
+                            }
                             
                             // Aguardar um pouco para não sobrecarregar a API
                             await new Promise(resolve => setTimeout(resolve, 100));
@@ -243,18 +253,26 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
                             // Se for erro específico do Gemini, marcar como erro
                             if (error.message.includes('Resposta inesperada do Gemini') || error.message.includes('Gemini API request failed')) {
                                 await apishopping.Products.update(
-                                    { status: 'erro_gemini' },
+                                    { 
+                                        status: 'erro_gemini',
+                                        motivo_recusa: 'Erro na análise do Gemini'
+                                    },
                                     { where: { id: product.product_id } }
                                 );
                                 product.status = 'erro_gemini';
+                                product.motivo_recusa = 'Erro na análise do Gemini';
                                 console.error(`Erro específico do Gemini para produto ${product.product_id}:`, error.message);
                             } else {
                                 // Para outros erros, marcar como reprovado
                                 await apishopping.Products.update(
-                                    { status: 'reprovado' },
+                                    { 
+                                        status: 'reprovado',
+                                        motivo_recusa: 'Erro durante análise'
+                                    },
                                     { where: { id: product.product_id } }
                                 );
                                 product.status = 'reprovado';
+                                product.motivo_recusa = 'Erro durante análise';
                             }
                         }
                     }

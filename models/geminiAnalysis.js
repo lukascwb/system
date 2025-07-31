@@ -99,32 +99,45 @@ For each product in the shopping results:
     }
 }
 
-async function analyzeProductSimilarity(keepaTitle, productTitle) {
+async function analyzeProductSimilarity(keepaTitle, productTitle, seller) {
     try {
-        const prompt = `Analise se o produto do Google Shopping é similar ao produto do Keepa.
+        const prompt = `Analise se o produto do Google Shopping é similar ao produto do Keepa E se o vendedor está na lista de varejistas aprovados.
 
 Produto Keepa: "${keepaTitle}"
 Produto Google Shopping: "${productTitle}"
+Vendedor: "${seller}"
+
+VAREJISTAS APROVADOS:
+Ace Hardware, Best Buy, BJ's, CVS, Dick's Sporting Goods, Dollar General, Dollar Tree, Family Dollar, GameStop, Five Below, The Home Depot, Kohl's, Lowe's, Macy's, Michael's, PetSmart, Rite Aid, Rhode Island Novelty, Sam's Club, Staples, Target, VitaCost, Walmart, Walgreens.
 
 REGRAS RIGOROSAS:
-1. Aprove APENAS se for EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
+1. Aprove APENAS se:
+   - For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
+   - E o vendedor estiver na lista de varejistas aprovados acima
 2. Reprove se:
    - Marca diferente (ex: 3M vs Filtrete)
    - Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
    - Produto completamente diferente
+   - Vendedor NÃO está na lista de varejistas aprovados
    - Qualquer dúvida
 
 EXEMPLOS ESPECÍFICOS:
 APROVADO:
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" → Aprovado
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" → Aprovado
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Target" → Aprovado
 
 REPROVADO:
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Ultimate Allergen Reduction Filters" → Reprovado (marca diferente)
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Filtrete Micro Allergen Defense" → Reprovado (marca diferente)
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 20x20x1 Hvac Furnace Air Filter MPR 800" → Reprovado (modelo diferente)
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 16 in x 20 in x 1 in Micro Allergen Defense" → Reprovado (modelo diferente)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Ultimate Allergen Reduction Filters" + Vendedor: "Walmart" → Reprovado (marca diferente)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Amazon" → Reprovado (vendedor não aprovado)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 20x20x1 Hvac Furnace Air Filter MPR 800" + Vendedor: "Walmart" → Reprovado (modelo diferente)
 
 SEJA MUITO CONSERVADOR. Em caso de dúvida, sempre reprove.
+
+IMPORTANTE: Se reprovar, forneça o motivo específico da recusa de forma objetiva e concisa.
+
+FORMATO DA RESPOSTA:
+- Se APROVADO: responda apenas "Aprovado"
+- Se REPROVADO: responda "Reprovado" seguido do motivo, exemplo: "Reprovado (marca diferente)" ou "Reprovado (vendedor não aprovado)"
 
 Resposta:`;
 
@@ -144,7 +157,7 @@ Resposta:`;
             ],
             generationConfig: {
                 temperature: 0.0,
-                maxOutputTokens: 20,
+                maxOutputTokens: 100,
                 topP: 0.1,
                 topK: 1
             }
@@ -170,9 +183,11 @@ Resposta:`;
         
         // Validar se o resultado é exatamente "Aprovado" ou "Reprovado"
         if (result === "Aprovado") {
-            return "aprovado";
-        } else if (result === "Reprovado") {
-            return "reprovado";
+            return { status: "aprovado", motivo: null };
+        } else if (result.startsWith("Reprovado")) {
+            // Extrair o motivo da recusa (tudo após "Reprovado")
+            const motivo = result.replace("Reprovado", "").trim();
+            return { status: "reprovado", motivo: motivo || "Motivo não especificado" };
         } else {
             // Se não retornou o esperado, lançar erro com detalhes
             throw new Error(`Resposta inesperada do Gemini: "${result}". Esperado: "Aprovado" ou "Reprovado"`);
