@@ -99,13 +99,41 @@ For each product in the shopping results:
     }
 }
 
-async function analyzeProductSimilarity(keepaTitle, productTitle, seller) {
+async function analyzeProductSimilarity(keepaTitle, productTitle, seller, amazonPrice, googlePrice) {
     try {
+        // Validar se os preços são válidos
+        if (!amazonPrice || !googlePrice) {
+            return { status: "reprovado", motivo: "Preços não disponíveis" };
+        }
+        
+        // Calcular o custo máximo permitido
+        const amazonPriceNum = parseFloat(amazonPrice.replace('$', ''));
+        const googlePriceNum = parseFloat(googlePrice.replace('$', ''));
+        
+        // Validar se os preços são números válidos
+        if (isNaN(amazonPriceNum) || isNaN(googlePriceNum)) {
+            return { status: "reprovado", motivo: "Preços inválidos" };
+        }
+        
+        const maxAllowedCost = amazonPriceNum - (amazonPriceNum * 0.15) - 5.00 - 2.00;
+        
+        console.log(`Cálculo do custo máximo: Amazon $${amazonPriceNum} - 15% ($${(amazonPriceNum * 0.15).toFixed(2)}) - $5.00 - $2.00 = $${maxAllowedCost.toFixed(2)}`);
+        console.log(`Preço Google Shopping: $${googlePriceNum}`);
+        console.log(`Diferença: $${(googlePriceNum - maxAllowedCost).toFixed(2)}`);
+        
         const prompt = `Analise se o produto do Google Shopping é similar ao produto do Keepa E se o vendedor está na lista de varejistas aprovados.
 
 Produto Keepa: "${keepaTitle}"
 Produto Google Shopping: "${productTitle}"
 Vendedor: "${seller}"
+
+CÁLCULO DO CUSTO MÁXIMO PERMITIDO:
+Custo Máximo = [Amazon Price] - (15% de comissão Amazon) - $5.00 (frete) - $2.00 (lucro mínimo)
+Use exatamente esta fórmula:
+Custo Máximo = ${amazonPrice} - (${amazonPrice} * 0.15) - 5.00 - 2.00 = $${maxAllowedCost.toFixed(2)}
+
+Preço Amazon (Keepa): ${amazonPrice}
+Preço Google Shopping ("New: Current"): ${googlePrice}
 
 VAREJISTAS APROVADOS:
 Ace Hardware, Best Buy, BJ's, CVS, Dick's Sporting Goods, Dollar General, Dollar Tree, Family Dollar, GameStop, Five Below, The Home Depot, Kohl's, Lowe's, Macy's, Michael's, PetSmart, Rite Aid, Rhode Island Novelty, Sam's Club, Staples, Target, VitaCost, Walmart, Walgreens.
@@ -114,22 +142,25 @@ REGRAS RIGOROSAS:
 1. Aprove APENAS se:
    - For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
    - E o vendedor estiver na lista de varejistas aprovados acima
+   - E o preço do Google Shopping for menor ou igual ao Custo Máximo Permitido ($${maxAllowedCost.toFixed(2)})
 2. Reprove se:
    - Marca diferente (ex: 3M vs Filtrete)
    - Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
    - Produto completamente diferente
    - Vendedor NÃO está na lista de varejistas aprovados
+   - Preço do Google Shopping é maior que o Custo Máximo Permitido
    - Qualquer dúvida
 
 EXEMPLOS ESPECÍFICOS:
 APROVADO:
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" → Aprovado
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Target" → Aprovado
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" + Preço ≤ Custo Máximo → Aprovado
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Target" + Preço ≤ Custo Máximo → Aprovado
 
 REPROVADO:
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Ultimate Allergen Reduction Filters" + Vendedor: "Walmart" → Reprovado (marca diferente)
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Amazon" → Reprovado (vendedor não aprovado)
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 20x20x1 Hvac Furnace Air Filter MPR 800" + Vendedor: "Walmart" → Reprovado (modelo diferente)
+- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" + Preço > Custo Máximo → Reprovado (preço muito alto)
 
 SEJA MUITO CONSERVADOR. Em caso de dúvida, sempre reprove.
 
@@ -137,7 +168,7 @@ IMPORTANTE: Se reprovar, forneça o motivo específico da recusa de forma objeti
 
 FORMATO DA RESPOSTA:
 - Se APROVADO: responda apenas "Aprovado"
-- Se REPROVADO: responda "Reprovado" seguido do motivo, exemplo: "Reprovado (marca diferente)" ou "Reprovado (vendedor não aprovado)"
+- Se REPROVADO: responda "Reprovado" seguido do motivo, exemplo: "Reprovado (marca diferente)" ou "Reprovado (vendedor não aprovado)" ou "Reprovado (preço muito alto)"
 
 Resposta:`;
 
@@ -195,7 +226,7 @@ Resposta:`;
 
     } catch (error) {
         console.error("Error analyzing product similarity:", error);
-        return "reprovado"; // Em caso de erro, retorna reprovado por segurança
+        return { status: "reprovado", motivo: "Erro durante análise" }; // Em caso de erro, retorna reprovado por segurança
     }
 }
 

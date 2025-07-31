@@ -224,7 +224,7 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
                             console.log(`  Shopping: "${product.go_shopp_title}"`);
                             console.log(`  Vendedor: "${product.go_shopp_seller}"`);
                             
-                            const result = await analyzeProductSimilarity(keepaProduct.keepa_product, product.go_shopp_title, product.go_shopp_seller);
+                            const result = await analyzeProductSimilarity(keepaProduct.keepa_product, product.go_shopp_title, product.go_shopp_seller, keepaProduct.keepa_current, product.go_shopp_price);
                             
                             // Atualizar o status e motivo no banco de dados
                             await apishopping.Products.update(
