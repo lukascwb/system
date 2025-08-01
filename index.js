@@ -478,15 +478,55 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                 }
                 console.log('=== SELLER PRE-FILTER END ===');
 
-                // GEMINI ANALYSIS: Only analyze products with approved sellers
+                // PRICE PRE-FILTER: Check if product price is within profitable range
+                console.log('=== PRICE PRE-FILTER START ===');
+                console.log('Keepa New Current Price:', keepaRecord['New: Current']);
+                
+                for (let i = 0; i < productsAPI.length; i++) {
+                    const product = productsAPI[i];
+                    
+                    // Skip price check if seller was already rejected
+                    if (product.geminiStatus === "Reprovado") {
+                        console.log(`Product ${i + 1} - Skipping price check (seller rejected): ${product.title}`);
+                        continue;
+                    }
+                    
+                    const amazonPrice = parseFloat(keepaRecord['New: Current'].replace('$', ''));
+                    const shoppingPrice = parseFloat(product.price.replace('$', ''));
+                    
+                    console.log(`Product ${i + 1} - Raw Price Data:`);
+                    console.log(`  Raw Amazon Price: "${keepaRecord['New: Current']}"`);
+                    console.log(`  Raw Shopping Price: "${product.price}"`);
+                    console.log(`  Parsed Amazon Price: ${amazonPrice}`);
+                    console.log(`  Parsed Shopping Price: ${shoppingPrice}`);
+                    
+                    // Calculate maximum allowed cost
+                    const maxAllowedCost = amazonPrice - (amazonPrice * 0.15) - 5.00 - 2.00;
+                    
+                    console.log(`Product ${i + 1} - Price Analysis:`);
+                    console.log(`  Amazon Price: $${amazonPrice.toFixed(2)}`);
+                    console.log(`  Shopping Price: $${shoppingPrice.toFixed(2)}`);
+                    console.log(`  Custo Máximo = $${amazonPrice.toFixed(2)} - ($${amazonPrice.toFixed(2)} * 0.15) - 5.00 - 2.00 = $${maxAllowedCost.toFixed(2)}`);
+                    
+                    if (shoppingPrice <= maxAllowedCost) {
+                        console.log(`Product ${i + 1} - Price APPROVED: $${shoppingPrice.toFixed(2)} <= $${maxAllowedCost.toFixed(2)}`);
+                    } else {
+                        console.log(`Product ${i + 1} - Price REJECTED: $${shoppingPrice.toFixed(2)} > $${maxAllowedCost.toFixed(2)} - Motivo: Preço muito alto`);
+                        product.geminiStatus = "Reprovado";
+                        product.geminiReason = "Preço muito alto";
+                    }
+                }
+                console.log('=== PRICE PRE-FILTER END ===');
+
+                // GEMINI ANALYSIS: Only analyze products with approved sellers and prices
                 console.log('=== GEMINI ANALYSIS START ===');
                 console.log('Keepa Title for Analysis:', keepaRecord.Title);
                 for (let i = 0; i < productsAPI.length; i++) {
                     const product = productsAPI[i];
                     
-                    // Skip Gemini analysis if seller was already rejected
+                    // Skip Gemini analysis if seller or price was already rejected
                     if (product.geminiStatus === "Reprovado") {
-                        console.log(`Product ${i + 1} - Skipping Gemini (seller rejected): ${product.title}`);
+                        console.log(`Product ${i + 1} - Skipping Gemini (seller/price rejected): ${product.title}`);
                         continue;
                     }
                     
