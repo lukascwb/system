@@ -59,7 +59,9 @@
               <div class="product-result ">
                 <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
                 <a style="color: white;" target="_blank" href="{{link}}">
-                  <p class="text-wrap">{{title}} - {{price}} - {{seller}} </p>
+                  <p class="text-wrap {{#if (eq (checkApprovedSeller seller) '')}}approved{{else}}rejected{{/if}}">
+                    {{title}} - {{price}} - {{seller}}{{#unless (eq (checkApprovedSeller seller) '')}} - {{checkApprovedSeller seller}}{{/unless}}
+                  </p>
                 </a>
               </div>
               {{/each}}
@@ -162,6 +164,17 @@
   .matching-row {
     background-color: #60cd603d;
     /* Or any color you prefer */
+  }
+
+  /* Styles for approval status */
+  .text-wrap.approved {
+    color: #ffffff !important;
+    font-weight: normal;
+  }
+
+  .text-wrap.rejected {
+    color: #dc3545 !important;
+    font-weight: bold;
   }
 </style>
 

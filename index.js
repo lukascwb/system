@@ -62,6 +62,24 @@ app.engine('handlebars', handlebars.engine({
         BJs: function (brand) {
             return "https://www.bjs.com/search/" + brand + "/q?template=clp";
         },
+        checkApprovedSeller: function (seller) {
+            const approvedSellers = [
+                'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
+                'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
+                'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
+                'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Staples', 'Target', 
+                'VitaCost', 'Walmart', 'Walgreens'
+            ];
+            
+            if (!seller) return 'Reprovado';
+            
+            const normalizedSeller = seller.trim();
+            const isApproved = approvedSellers.some(approved => 
+                normalizedSeller.toLowerCase().includes(approved.toLowerCase())
+            );
+            
+            return isApproved ? '' : 'Reprovado';
+        },
     }
 }))
 
@@ -422,6 +440,20 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                         ]
                     });
                 }
+
+                // LOG: Print product information before analysis
+                console.log('=== PRODUCT ANALYSIS LOG ===');
+                console.log('Keepa Title:', keepaRecord.Title);
+                console.log('Keepa New Current Price:', keepaRecord['New: Current']);
+                console.log('Products found:', productsAPI.length);
+                
+                productsAPI.forEach((product, index) => {
+                    console.log(`Product ${index + 1}:`);
+                    console.log('  - Title:', product.title);
+                    console.log('  - Seller:', product.seller);
+                    console.log('  - Price:', product.price);
+                });
+                console.log('=== END PRODUCT ANALYSIS LOG ===');
 
                 //custom title with emojis
                 let emojiX = true;
