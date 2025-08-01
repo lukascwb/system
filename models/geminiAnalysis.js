@@ -96,6 +96,73 @@ For each product in the shopping results:
     }
 }
 
-module.exports = { analyzeProduct };
+async function analyzeTitles(keepaTitle, productTitle) {
+    try {
+        const prompt = `Analise se os dois títulos de produtos se referem ao mesmo produto:
+
+Título do Keepa: "${keepaTitle}"
+Título do Produto: "${productTitle}"
+
+Instruções:
+1. Compare os dois títulos
+2. Verifique se são o mesmo produto (mesma marca, modelo, especificações)
+3. Considere variações de escrita, abreviações, mas mantenha rigor na comparação
+4. Responda APENAS com "Aprovado" se for o mesmo produto, ou "Reprovado" se não for
+
+Resposta:`;
+
+        const API_KEY = process.env.GOOGLE_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+
+        const requestData = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: prompt
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 50,
+                topP: 0.95,
+                topK: 40
+            }
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Gemini API request failed with status ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        console.log('Gemini API Response:', JSON.stringify(data, null, 2));
+        
+        const result = data.candidates[0].content.parts[0].text.trim();
+        console.log('Gemini Raw Result:', `"${result}"`);
+        
+        // Garantir que retorna apenas "Aprovado" ou "Reprovado"
+        const finalResult = result === "Aprovado" ? "Aprovado" : "Reprovado";
+        console.log('Gemini Final Result:', finalResult);
+        return finalResult;
+
+    } catch (error) {
+        console.error("Error analyzing titles with Gemini:", error);
+        return "Reprovado"; // Em caso de erro, retorna reprovado
+    }
+}
+
+module.exports = { analyzeProduct, analyzeTitles };
 
 
