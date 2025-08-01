@@ -143,24 +143,28 @@ REGRAS RIGOROSAS:
    - For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
    - E o vendedor estiver na lista de varejistas aprovados acima
    - E o preço do Google Shopping for menor ou igual ao Custo Máximo Permitido ($${maxAllowedCost.toFixed(2)})
+   - E o modelo, estilo, cor, sabor, etc., forem EXATAMENTE os mesmos entre Keepa e Shopping
 2. Reprove se:
    - Marca diferente (ex: 3M vs Filtrete)
    - Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
    - Produto completamente diferente
    - Vendedor NÃO está na lista de varejistas aprovados
    - Preço do Google Shopping é maior que o Custo Máximo Permitido
+   - Modelo, estilo, cor, sabor, etc., são diferentes entre Keepa e Shopping
    - Qualquer dúvida
 
 EXEMPLOS ESPECÍFICOS:
 APROVADO:
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" + Preço ≤ Custo Máximo → Aprovado
-- Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Target" + Preço ≤ Custo Máximo → Aprovado
+- Keepa: "Filtrete Allergen Defense Air Filter" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" + Preço ≤ Custo Máximo → Aprovado
+- Keepa: "Nike Air Max 90 Grey Heather" vs Shopping: "Nike Air Max 90 Grey Heather" + Vendedor: "Target" + Preço ≤ Custo Máximo → Aprovado
 
 REPROVADO:
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "3M Ultimate Allergen Reduction Filters" + Vendedor: "Walmart" → Reprovado (marca diferente)
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Amazon" → Reprovado (vendedor não aprovado)
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete 20x20x1 Hvac Furnace Air Filter MPR 800" + Vendedor: "Walmart" → Reprovado (modelo diferente)
 - Keepa: "Filtrete Allergen Defense Air" vs Shopping: "Filtrete Allergen Defense Air Filter" + Vendedor: "Walmart" + Preço > Custo Máximo → Reprovado (preço muito alto)
+- Keepa: "Filtrete Allergen Defense Air Filter" vs Shopping: "Filtrete Ultimate Allergen Defense Air Filter" + Vendedor: "Walmart" → Reprovado (modelo diferente: "Allergen Defense" ≠ "Ultimate Allergen")
+- Keepa: "Nike Air Max 90 Grey Heather" vs Shopping: "Nike Air Max 90 Black" + Vendedor: "Walmart" → Reprovado (cor diferente: "Grey Heather" ≠ "Black")
 
 SEJA MUITO CONSERVADOR. Em caso de dúvida, sempre reprove.
 
@@ -168,7 +172,7 @@ IMPORTANTE: Se reprovar, forneça o motivo específico da recusa de forma objeti
 
 FORMATO DA RESPOSTA:
 - Se APROVADO: responda apenas "Aprovado"
-- Se REPROVADO: responda "Reprovado" seguido do motivo, exemplo: "Reprovado (marca diferente)" ou "Reprovado (vendedor não aprovado)" ou "Reprovado (preço muito alto)"
+- Se REPROVADO: responda "Reprovado" seguido do motivo, exemplo: "Reprovado (marca diferente)" ou "Reprovado (vendedor não aprovado)" ou "Reprovado (preço muito alto)" ou "Reprovado (modelo diferente)" ou "Reprovado (cor diferente)"
 
 Resposta:`;
 
