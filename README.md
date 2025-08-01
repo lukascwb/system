@@ -51,8 +51,15 @@ secret=chave_secreta_123
 npm start
 ```
 
-### 6. Acesse
-http://localhost:8081
+### 6. Acesse e Crie Usuário
+1. Acesse: http://localhost:8081
+2. Você será redirecionado para a página de login
+3. Clique em "Register" ou acesse: http://localhost:8081/register
+4. Crie seu primeiro usuário com:
+   - Username: escolha um nome de usuário
+   - Password: escolha uma senha
+5. Após criar o usuário, você será redirecionado para o login
+6. Faça login com as credenciais que criou
 
 ## 🔑 Chaves de API Necessárias
 
