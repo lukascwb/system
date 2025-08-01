@@ -62,11 +62,11 @@ app.engine('handlebars', handlebars.engine({
         BJs: function (brand) {
             return "https://www.bjs.com/search/" + brand + "/q?template=clp";
         },
-        checkApprovedSeller: function (seller, geminiStatus) {
+        checkApprovedSeller: function (seller, geminiStatus, geminiReason) {
             // Since seller pre-filter is done before Gemini analysis,
             // geminiStatus already contains the final result
             if (geminiStatus === 'Reprovado') {
-                return 'Reprovado';
+                return geminiReason ? `Reprovado - ${geminiReason}` : 'Reprovado';
             }
             return ''; // Aprovado
         },
@@ -471,8 +471,9 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     if (sellerApproved) {
                         console.log(`Product ${i + 1} - Seller APPROVED: ${seller}`);
                     } else {
-                        console.log(`Product ${i + 1} - Seller REJECTED: ${seller} - Skipping Gemini analysis`);
-                        product.geminiStatus = "Reprovado"; // Set as rejected without calling Gemini
+                        console.log(`Product ${i + 1} - Seller REJECTED: ${seller} - Motivo: Vendedor não aprovado`);
+                        product.geminiStatus = "Reprovado";
+                        product.geminiReason = "Vendedor não aprovado";
                     }
                 }
                 console.log('=== SELLER PRE-FILTER END ===');
@@ -493,13 +494,17 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                         console.log(`\n--- Analyzing Product ${i + 1} with Gemini ---`);
                         console.log('Product Title:', product.title);
                         const geminiResult = await analyzeTitles(keepaRecord.Title, product.title);
-                        product.geminiStatus = geminiResult;
-                        console.log(`Gemini Result: "${geminiResult}"`);
-                        console.log(`Final Status: ${geminiResult}`);
+                        product.geminiStatus = geminiResult.status;
+                        product.geminiReason = geminiResult.reason;
+                        console.log(`Gemini Result: "${geminiResult.status}" - Motivo: "${geminiResult.reason}"`);
+                        console.log(`Final Status: ${geminiResult.status}`);
+                        console.log(`Final Reason: ${geminiResult.reason}`);
                         console.log(`Product geminiStatus set to: ${product.geminiStatus}`);
+                        console.log(`Product geminiReason set to: ${product.geminiReason}`);
                     } catch (error) {
                         console.error(`Error in Gemini analysis for product ${i + 1}:`, error);
                         product.geminiStatus = "Reprovado";
+                        product.geminiReason = "Erro na análise";
                     }
                 }
                 console.log('=== GEMINI ANALYSIS END ===');
