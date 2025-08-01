@@ -103,13 +103,19 @@ async function analyzeTitles(keepaTitle, productTitle) {
 Título do Keepa: "${keepaTitle}"
 Título do Produto: "${productTitle}"
 
-Instruções:
-1. Compare os dois títulos
-2. Verifique se são o mesmo produto (mesma marca, modelo, especificações)
-3. Considere variações de escrita, abreviações, mas mantenha rigor na comparação
-4. Responda APENAS com "Aprovado" se for o mesmo produto, ou "Reprovado" se não for
+REGRAS RIGOROSAS:
 
-Resposta:`;
+APROVE APENAS se:
+- For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
+- E o modelo, estilo, cor, sabor, etc., forem EXATAMENTE os mesmos entre Keepa e Shopping
+
+REPROVE se:
+- Marca diferente (ex: 3M vs Filtrete)
+- Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
+- Produto completamente diferente
+- Modelo, estilo, cor, sabor, etc., são diferentes entre Keepa e Shopping
+
+Responda APENAS com "Aprovado" ou "Reprovado":`;
 
         const API_KEY = process.env.GOOGLE_API_KEY;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
