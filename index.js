@@ -63,45 +63,11 @@ app.engine('handlebars', handlebars.engine({
             return "https://www.bjs.com/search/" + brand + "/q?template=clp";
         },
         checkApprovedSeller: function (seller, geminiStatus) {
-            const approvedSellers = [
-                'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
-                'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
-                'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
-                'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Staples', 'Target', 
-                'VitaCost', 'Walmart', 'Walgreens'
-            ];
-            
-            console.log('Helper Debug - Seller:', seller, 'GeminiStatus:', geminiStatus);
-            
-            // Verificar se o vendedor está aprovado
-            let sellerStatus = '';
-            if (!seller) {
-                sellerStatus = 'Reprovado';
-            } else {
-                const normalizedSeller = seller.trim();
-                const isApproved = approvedSellers.some(approved => 
-                    normalizedSeller.toLowerCase().includes(approved.toLowerCase())
-                );
-                sellerStatus = isApproved ? '' : 'Reprovado';
-            }
-            
-            console.log('Helper Debug - SellerStatus:', sellerStatus);
-            
-            // Verificar se o Gemini aprovou
-            let geminiResult = '';
-            if (geminiStatus && geminiStatus === 'Reprovado') {
-                geminiResult = 'Reprovado';
-            }
-            
-            console.log('Helper Debug - GeminiResult:', geminiResult);
-            
-            // Se qualquer um dos dois reprovou, retorna "Reprovado"
-            if (sellerStatus === 'Reprovado' || geminiResult === 'Reprovado') {
-                console.log('Helper Debug - Final Result: Reprovado');
+            // Since seller pre-filter is done before Gemini analysis,
+            // geminiStatus already contains the final result
+            if (geminiStatus === 'Reprovado') {
                 return 'Reprovado';
             }
-            
-            console.log('Helper Debug - Final Result: Aprovado (empty string)');
             return ''; // Aprovado
         },
     }
@@ -479,13 +445,52 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                 });
                 console.log('=== END PRODUCT ANALYSIS LOG ===');
 
-                // GEMINI ANALYSIS: Analyze each product title with Keepa title
+                // SELLER PRE-FILTER: Check seller before sending to Gemini
+                console.log('=== SELLER PRE-FILTER START ===');
+                const approvedSellers = [
+                    'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
+                    'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
+                    'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
+                    'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Staples', 'Target', 
+                    'VitaCost', 'Walmart', 'Walgreens'
+                ];
+                
+                for (let i = 0; i < productsAPI.length; i++) {
+                    const product = productsAPI[i];
+                    const seller = product.seller;
+                    
+                    // Check if seller is approved
+                    let sellerApproved = false;
+                    if (seller) {
+                        const normalizedSeller = seller.trim();
+                        sellerApproved = approvedSellers.some(approved => 
+                            normalizedSeller.toLowerCase().includes(approved.toLowerCase())
+                        );
+                    }
+                    
+                    if (sellerApproved) {
+                        console.log(`Product ${i + 1} - Seller APPROVED: ${seller}`);
+                    } else {
+                        console.log(`Product ${i + 1} - Seller REJECTED: ${seller} - Skipping Gemini analysis`);
+                        product.geminiStatus = "Reprovado"; // Set as rejected without calling Gemini
+                    }
+                }
+                console.log('=== SELLER PRE-FILTER END ===');
+
+                // GEMINI ANALYSIS: Only analyze products with approved sellers
                 console.log('=== GEMINI ANALYSIS START ===');
                 console.log('Keepa Title for Analysis:', keepaRecord.Title);
                 for (let i = 0; i < productsAPI.length; i++) {
                     const product = productsAPI[i];
+                    
+                    // Skip Gemini analysis if seller was already rejected
+                    if (product.geminiStatus === "Reprovado") {
+                        console.log(`Product ${i + 1} - Skipping Gemini (seller rejected): ${product.title}`);
+                        continue;
+                    }
+                    
                     try {
-                        console.log(`\n--- Analyzing Product ${i + 1} ---`);
+                        console.log(`\n--- Analyzing Product ${i + 1} with Gemini ---`);
                         console.log('Product Title:', product.title);
                         const geminiResult = await analyzeTitles(keepaRecord.Title, product.title);
                         product.geminiStatus = geminiResult;
