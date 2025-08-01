@@ -59,8 +59,8 @@
               <div class="product-result ">
                 <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
                 <a style="color: white;" target="_blank" href="{{link}}">
-                  <p class="text-wrap {{#if (eq (checkApprovedSeller seller geminiStatus) '')}}approved{{else}}rejected{{/if}}">
-                    {{title}} - {{price}} - {{seller}}{{#if (eq (checkApprovedSeller seller geminiStatus) '')}} - Aprovado{{else}} - Reprovado{{/if}}
+                  <p class="text-wrap {{#if (eq (checkApprovedSeller seller geminiStatus geminiReason) '')}}approved{{else}}rejected{{/if}}">
+                    {{title}} - {{price}} - {{seller}}{{#if (eq (checkApprovedSeller seller geminiStatus geminiReason) '')}} - Aprovado{{else}} - {{checkApprovedSeller seller geminiStatus geminiReason}}{{/if}}
                   </p>
                 </a>
               </div>
