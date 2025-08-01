@@ -18,7 +18,7 @@ const sequelize = require('sequelize');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const bcryptjs = require('bcryptjs');
-const geminiAnalysis = require('./models/geminiAnalysis')
+const { analyzeProduct, analyzeTitles } = require('./models/geminiAnalysis')
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 
@@ -62,7 +62,7 @@ app.engine('handlebars', handlebars.engine({
         BJs: function (brand) {
             return "https://www.bjs.com/search/" + brand + "/q?template=clp";
         },
-        checkApprovedSeller: function (seller) {
+        checkApprovedSeller: function (seller, geminiStatus) {
             const approvedSellers = [
                 'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
                 'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
@@ -71,14 +71,38 @@ app.engine('handlebars', handlebars.engine({
                 'VitaCost', 'Walmart', 'Walgreens'
             ];
             
-            if (!seller) return 'Reprovado';
+            console.log('Helper Debug - Seller:', seller, 'GeminiStatus:', geminiStatus);
             
-            const normalizedSeller = seller.trim();
-            const isApproved = approvedSellers.some(approved => 
-                normalizedSeller.toLowerCase().includes(approved.toLowerCase())
-            );
+            // Verificar se o vendedor está aprovado
+            let sellerStatus = '';
+            if (!seller) {
+                sellerStatus = 'Reprovado';
+            } else {
+                const normalizedSeller = seller.trim();
+                const isApproved = approvedSellers.some(approved => 
+                    normalizedSeller.toLowerCase().includes(approved.toLowerCase())
+                );
+                sellerStatus = isApproved ? '' : 'Reprovado';
+            }
             
-            return isApproved ? '' : 'Reprovado';
+            console.log('Helper Debug - SellerStatus:', sellerStatus);
+            
+            // Verificar se o Gemini aprovou
+            let geminiResult = '';
+            if (geminiStatus && geminiStatus === 'Reprovado') {
+                geminiResult = 'Reprovado';
+            }
+            
+            console.log('Helper Debug - GeminiResult:', geminiResult);
+            
+            // Se qualquer um dos dois reprovou, retorna "Reprovado"
+            if (sellerStatus === 'Reprovado' || geminiResult === 'Reprovado') {
+                console.log('Helper Debug - Final Result: Reprovado');
+                return 'Reprovado';
+            }
+            
+            console.log('Helper Debug - Final Result: Aprovado (empty string)');
+            return ''; // Aprovado
         },
     }
 }))
@@ -163,7 +187,7 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
             return res.status(400).send('Missing required parameters');
         }
 
-        const analysisResult = await geminiAnalysis.analyzeProduct(keepaTitle, keepaAvgOffer, shoppingResultsJson);
+                        const analysisResult = await analyzeProduct(keepaTitle, keepaAvgOffer, shoppingResultsJson);
         console.log(analysisResult); // Log the result to the console.  You can render a template here instead
         res.send('Analysis complete. Check the console.');
     } catch (error) {
@@ -455,6 +479,26 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                 });
                 console.log('=== END PRODUCT ANALYSIS LOG ===');
 
+                // GEMINI ANALYSIS: Analyze each product title with Keepa title
+                console.log('=== GEMINI ANALYSIS START ===');
+                console.log('Keepa Title for Analysis:', keepaRecord.Title);
+                for (let i = 0; i < productsAPI.length; i++) {
+                    const product = productsAPI[i];
+                    try {
+                        console.log(`\n--- Analyzing Product ${i + 1} ---`);
+                        console.log('Product Title:', product.title);
+                        const geminiResult = await analyzeTitles(keepaRecord.Title, product.title);
+                        product.geminiStatus = geminiResult;
+                        console.log(`Gemini Result: "${geminiResult}"`);
+                        console.log(`Final Status: ${geminiResult}`);
+                        console.log(`Product geminiStatus set to: ${product.geminiStatus}`);
+                    } catch (error) {
+                        console.error(`Error in Gemini analysis for product ${i + 1}:`, error);
+                        product.geminiStatus = "Reprovado";
+                    }
+                }
+                console.log('=== GEMINI ANALYSIS END ===');
+
                 //custom title with emojis
                 let emojiX = true;
                 const avgKeepaPrice = apishopping.avgPriceKeepa(keepaRecord)
@@ -521,7 +565,22 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
             // Calculate total processing time
             const endTime = Date.now();
             const totalTime = (endTime - startTime) / 1000;
-            // console.log('index - groupedProducts: ' + JSON.stringify(groupedProducts, null, 2));
+            
+            // Log final data for debugging
+            console.log('=== FINAL TEMPLATE DATA ===');
+            console.log('GroupedProducts length:', groupedProducts.length);
+            groupedProducts.forEach((group, groupIndex) => {
+                console.log(`Group ${groupIndex + 1}:`);
+                group.productsAPI.forEach((product, productIndex) => {
+                    console.log(`  Product ${productIndex + 1}:`, {
+                        title: product.title,
+                        seller: product.seller,
+                        geminiStatus: product.geminiStatus
+                    });
+                });
+            });
+            console.log('=== END FINAL TEMPLATE DATA ===');
+            
             res.render('apishopping', {
                 tblKeepa: groupedProducts,
                 apiRequestsComplete: true,
