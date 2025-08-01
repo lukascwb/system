@@ -115,7 +115,8 @@ REPROVE se:
 - Produto completamente diferente
 - Modelo, estilo, cor, sabor, etc., são diferentes entre Keepa e Shopping
 
-Responda APENAS com "Aprovado" ou "Reprovado":`;
+Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Modelo diferente").
+O motivo deve ser objetivo e máximo 2 palavras.`;
 
         const API_KEY = process.env.GOOGLE_API_KEY;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
@@ -133,7 +134,7 @@ Responda APENAS com "Aprovado" ou "Reprovado":`;
             ],
             generationConfig: {
                 temperature: 0.1,
-                maxOutputTokens: 50,
+                maxOutputTokens: 100,
                 topP: 0.95,
                 topK: 40
             }
@@ -158,14 +159,34 @@ Responda APENAS com "Aprovado" ou "Reprovado":`;
         const result = data.candidates[0].content.parts[0].text.trim();
         console.log('Gemini Raw Result:', `"${result}"`);
         
-        // Garantir que retorna apenas "Aprovado" ou "Reprovado"
-        const finalResult = result === "Aprovado" ? "Aprovado" : "Reprovado";
-        console.log('Gemini Final Result:', finalResult);
-        return finalResult;
+        // Parse the result to extract status and reason
+        let finalStatus, finalReason;
+        if (result === "Aprovado") {
+            finalStatus = "Aprovado";
+            finalReason = null;
+        } else if (result.includes("|")) {
+            const parts = result.split("|");
+            finalStatus = "Reprovado";
+            finalReason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+        } else {
+            finalStatus = "Reprovado";
+            finalReason = "Análise falhou";
+        }
+        
+        console.log('Gemini Final Status:', finalStatus);
+        console.log('Gemini Final Reason:', finalReason);
+        
+        return {
+            status: finalStatus,
+            reason: finalReason
+        };
 
     } catch (error) {
         console.error("Error analyzing titles with Gemini:", error);
-        return "Reprovado"; // Em caso de erro, retorna reprovado
+        return {
+            status: "Reprovado",
+            reason: "Erro na análise"
+        };
     }
 }
 
