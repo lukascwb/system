@@ -96,6 +96,100 @@ For each product in the shopping results:
     }
 }
 
-module.exports = { analyzeProduct };
+async function analyzeTitles(keepaTitle, productTitle) {
+    try {
+        const prompt = `Analise se os dois títulos de produtos se referem ao mesmo produto:
+
+Título do Keepa: "${keepaTitle}"
+Título do Produto: "${productTitle}"
+
+REGRAS RIGOROSAS:
+
+APROVE APENAS se:
+- For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
+- E o modelo, estilo, cor, sabor, etc., forem EXATAMENTE os mesmos entre Keepa e Shopping
+
+REPROVE se:
+- Marca diferente (ex: 3M vs Filtrete)
+- Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
+- Produto completamente diferente
+- Modelo, estilo, cor, sabor, etc., são diferentes entre Keepa e Shopping
+
+Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Modelo diferente").
+O motivo deve ser objetivo e máximo 2 palavras.`;
+
+        const API_KEY = process.env.GOOGLE_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+
+        const requestData = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: prompt
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 100,
+                topP: 0.95,
+                topK: 40
+            }
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Gemini API request failed with status ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        console.log('Gemini API Response:', JSON.stringify(data, null, 2));
+        
+        const result = data.candidates[0].content.parts[0].text.trim();
+        console.log('Gemini Raw Result:', `"${result}"`);
+        
+        // Parse the result to extract status and reason
+        let finalStatus, finalReason;
+        if (result === "Aprovado") {
+            finalStatus = "Aprovado";
+            finalReason = null;
+        } else if (result.includes("|")) {
+            const parts = result.split("|");
+            finalStatus = "Reprovado";
+            finalReason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+        } else {
+            finalStatus = "Reprovado";
+            finalReason = "Análise falhou";
+        }
+        
+        console.log('Gemini Final Status:', finalStatus);
+        console.log('Gemini Final Reason:', finalReason);
+        
+        return {
+            status: finalStatus,
+            reason: finalReason
+        };
+
+    } catch (error) {
+        console.error("Error analyzing titles with Gemini:", error);
+        return {
+            status: "Reprovado",
+            reason: "Erro na análise"
+        };
+    }
+}
+
+module.exports = { analyzeProduct, analyzeTitles };
 
 
