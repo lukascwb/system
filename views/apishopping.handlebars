@@ -59,7 +59,9 @@
               <div class="product-result ">
                 <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
                 <a style="color: white;" target="_blank" href="{{link}}">
-                  <p class="text-wrap">{{title}} - {{price}} - {{seller}} </p>
+                  <p class="text-wrap {{#if (eq (checkApprovedSeller seller geminiStatus geminiReason) '')}}approved{{else}}rejected{{/if}}">
+                    {{title}} - {{price}} - {{seller}}{{#if (eq (checkApprovedSeller seller geminiStatus geminiReason) '')}} - Aprovado{{else}} - {{checkApprovedSeller seller geminiStatus geminiReason}}{{/if}}
+                  </p>
                 </a>
               </div>
               {{/each}}
@@ -163,9 +165,20 @@
     background-color: #60cd603d;
     /* Or any color you prefer */
   }
+
+  /* Styles for approval status */
+  .text-wrap.approved {
+    color: #28a745 !important;
+    font-weight: bold;
+  }
+
+  .text-wrap.rejected {
+    color: #dc3545 !important;
+    font-weight: bold;
+  }
 </style>
 
-<scrip>
+<script>
   document.addEventListener('DOMContentLoaded', function() {
   const images = document.querySelectorAll('.zoom');
 
@@ -205,4 +218,4 @@
     });
   });
 });
-</scrip>
+</script>
