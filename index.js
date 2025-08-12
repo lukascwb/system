@@ -18,7 +18,7 @@ const sequelize = require('sequelize');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const bcryptjs = require('bcryptjs');
-const geminiAnalysis = require('./models/geminiAnalysis')
+const { analyzeProduct, analyzeTitles } = require('./models/geminiAnalysis')
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 
@@ -61,6 +61,14 @@ app.engine('handlebars', handlebars.engine({
         },
         BJs: function (brand) {
             return "https://www.bjs.com/search/" + brand + "/q?template=clp";
+        },
+        checkApprovedSeller: function (seller, geminiStatus, geminiReason) {
+            // Since seller pre-filter is done before Gemini analysis,
+            // geminiStatus already contains the final result
+            if (geminiStatus === 'Reprovado') {
+                return geminiReason ? `Reprovado - ${geminiReason}` : 'Reprovado';
+            }
+            return ''; // Aprovado
         },
     }
 }))
@@ -145,7 +153,7 @@ app.get('/gemini-analyze', authenticate, async (req, res) => {
             return res.status(400).send('Missing required parameters');
         }
 
-        const analysisResult = await geminiAnalysis.analyzeProduct(keepaTitle, keepaAvgOffer, shoppingResultsJson);
+                        const analysisResult = await analyzeProduct(keepaTitle, keepaAvgOffer, shoppingResultsJson);
         console.log(analysisResult); // Log the result to the console.  You can render a template here instead
         res.send('Analysis complete. Check the console.');
     } catch (error) {
@@ -423,6 +431,124 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     });
                 }
 
+                // LOG: Print product information before analysis
+                console.log('=== PRODUCT ANALYSIS LOG ===');
+                console.log('Keepa Title:', keepaRecord.Title);
+                console.log('Keepa New Current Price:', keepaRecord['New: Current']);
+                console.log('Products found:', productsAPI.length);
+                
+                productsAPI.forEach((product, index) => {
+                    console.log(`Product ${index + 1}:`);
+                    console.log('  - Title:', product.title);
+                    console.log('  - Seller:', product.seller);
+                    console.log('  - Price:', product.price);
+                });
+                console.log('=== END PRODUCT ANALYSIS LOG ===');
+
+                // SELLER PRE-FILTER: Check seller before sending to Gemini
+                console.log('=== SELLER PRE-FILTER START ===');
+                const approvedSellers = [
+                    'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
+                    'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
+                    'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
+                    'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Staples', 'Target', 
+                    'VitaCost', 'Walmart', 'Walgreens'
+                ];
+                
+                for (let i = 0; i < productsAPI.length; i++) {
+                    const product = productsAPI[i];
+                    const seller = product.seller;
+                    
+                    // Check if seller is approved
+                    let sellerApproved = false;
+                    if (seller) {
+                        const normalizedSeller = seller.trim();
+                        sellerApproved = approvedSellers.some(approved => 
+                            normalizedSeller.toLowerCase().includes(approved.toLowerCase())
+                        );
+                    }
+                    
+                    if (sellerApproved) {
+                        console.log(`Product ${i + 1} - Seller APPROVED: ${seller}`);
+                    } else {
+                        console.log(`Product ${i + 1} - Seller REJECTED: ${seller} - Motivo: Vendedor não aprovado`);
+                        product.geminiStatus = "Reprovado";
+                        product.geminiReason = "Vendedor não aprovado";
+                    }
+                }
+                console.log('=== SELLER PRE-FILTER END ===');
+
+                // PRICE PRE-FILTER: Check if product price is within profitable range
+                console.log('=== PRICE PRE-FILTER START ===');
+                console.log('Keepa New Current Price:', keepaRecord['New: Current']);
+                
+                for (let i = 0; i < productsAPI.length; i++) {
+                    const product = productsAPI[i];
+                    
+                    // Skip price check if seller was already rejected
+                    if (product.geminiStatus === "Reprovado") {
+                        console.log(`Product ${i + 1} - Skipping price check (seller rejected): ${product.title}`);
+                        continue;
+                    }
+                    
+                    const amazonPrice = parseFloat(keepaRecord['New: Current'].replace('$', ''));
+                    const shoppingPrice = parseFloat(product.price.replace('$', ''));
+                    
+                    console.log(`Product ${i + 1} - Raw Price Data:`);
+                    console.log(`  Raw Amazon Price: "${keepaRecord['New: Current']}"`);
+                    console.log(`  Raw Shopping Price: "${product.price}"`);
+                    console.log(`  Parsed Amazon Price: ${amazonPrice}`);
+                    console.log(`  Parsed Shopping Price: ${shoppingPrice}`);
+                    
+                    // Calculate maximum allowed cost
+                    const maxAllowedCost = amazonPrice - (amazonPrice * 0.15) - 5.00 - 2.00;
+                    
+                    console.log(`Product ${i + 1} - Price Analysis:`);
+                    console.log(`  Amazon Price: $${amazonPrice.toFixed(2)}`);
+                    console.log(`  Shopping Price: $${shoppingPrice.toFixed(2)}`);
+                    console.log(`  Custo Máximo = $${amazonPrice.toFixed(2)} - ($${amazonPrice.toFixed(2)} * 0.15) - 5.00 - 2.00 = $${maxAllowedCost.toFixed(2)}`);
+                    
+                    if (shoppingPrice <= maxAllowedCost) {
+                        console.log(`Product ${i + 1} - Price APPROVED: $${shoppingPrice.toFixed(2)} <= $${maxAllowedCost.toFixed(2)}`);
+                    } else {
+                        console.log(`Product ${i + 1} - Price REJECTED: $${shoppingPrice.toFixed(2)} > $${maxAllowedCost.toFixed(2)} - Motivo: Preço muito alto`);
+                        product.geminiStatus = "Reprovado";
+                        product.geminiReason = "Preço muito alto";
+                    }
+                }
+                console.log('=== PRICE PRE-FILTER END ===');
+
+                // GEMINI ANALYSIS: Only analyze products with approved sellers and prices
+                console.log('=== GEMINI ANALYSIS START ===');
+                console.log('Keepa Title for Analysis:', keepaRecord.Title);
+                for (let i = 0; i < productsAPI.length; i++) {
+                    const product = productsAPI[i];
+                    
+                    // Skip Gemini analysis if seller or price was already rejected
+                    if (product.geminiStatus === "Reprovado") {
+                        console.log(`Product ${i + 1} - Skipping Gemini (seller/price rejected): ${product.title}`);
+                        continue;
+                    }
+                    
+                    try {
+                        console.log(`\n--- Analyzing Product ${i + 1} with Gemini ---`);
+                        console.log('Product Title:', product.title);
+                        const geminiResult = await analyzeTitles(keepaRecord.Title, product.title);
+                        product.geminiStatus = geminiResult.status;
+                        product.geminiReason = geminiResult.reason;
+                        console.log(`Gemini Result: "${geminiResult.status}" - Motivo: "${geminiResult.reason}"`);
+                        console.log(`Final Status: ${geminiResult.status}`);
+                        console.log(`Final Reason: ${geminiResult.reason}`);
+                        console.log(`Product geminiStatus set to: ${product.geminiStatus}`);
+                        console.log(`Product geminiReason set to: ${product.geminiReason}`);
+                    } catch (error) {
+                        console.error(`Error in Gemini analysis for product ${i + 1}:`, error);
+                        product.geminiStatus = "Reprovado";
+                        product.geminiReason = "Erro na análise";
+                    }
+                }
+                console.log('=== GEMINI ANALYSIS END ===');
+
                 //custom title with emojis
                 let emojiX = true;
                 const avgKeepaPrice = apishopping.avgPriceKeepa(keepaRecord)
@@ -489,7 +615,22 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
             // Calculate total processing time
             const endTime = Date.now();
             const totalTime = (endTime - startTime) / 1000;
-            // console.log('index - groupedProducts: ' + JSON.stringify(groupedProducts, null, 2));
+            
+            // Log final data for debugging
+            console.log('=== FINAL TEMPLATE DATA ===');
+            console.log('GroupedProducts length:', groupedProducts.length);
+            groupedProducts.forEach((group, groupIndex) => {
+                console.log(`Group ${groupIndex + 1}:`);
+                group.productsAPI.forEach((product, productIndex) => {
+                    console.log(`  Product ${productIndex + 1}:`, {
+                        title: product.title,
+                        seller: product.seller,
+                        geminiStatus: product.geminiStatus
+                    });
+                });
+            });
+            console.log('=== END FINAL TEMPLATE DATA ===');
+            
             res.render('apishopping', {
                 tblKeepa: groupedProducts,
                 apiRequestsComplete: true,
