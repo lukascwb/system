@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Wholesale CSV</title>
+    <!-- Link to your CSS framework or custom styles -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <h1>Upload Wholesale Product CSV</h1>
+
+    <form action="/upload-wholesale" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="wholesaleCSV">Choose CSV file:</label>
+            <input type="file" id="wholesaleCSV" name="wholesaleCSV" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload and Process</button>
+    </form>
+
+    <p><a href="/list">Back to List</a></p>
+
+    <!-- Include your footer or common layout elements -->
+</body>
+</html>

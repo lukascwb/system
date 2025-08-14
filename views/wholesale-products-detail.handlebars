@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wholesale Batch Details: {{wholesale_id}}</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .table-container { overflow-x: auto; margin-bottom: 20px; }
+        .table th, .table td { white-space: nowrap; }
+        .no-results { font-style: italic; color: #6c757d; }
+        .wholesale-item-section { background-color: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #dee2e6; }
+        .wholesale-item-section h2 { margin-top: 0; font-size: 1.5em; }
+        .amazon-results-section { margin-top: 15px; }
+        .pagination-container { display: flex; justify-content: center; margin-top: 20px; }
+        .pagination-container a, .pagination-container span { margin: 0 5px; padding: 5px 10px; border: 1px solid #dee2e6; border-radius: .25rem; text-decoration: none; color: #007bff; }
+        .pagination-container .disabled { color: #6c757d; pointer-events: none; }
+        .pagination-container .active { background-color: #007bff; color: white; border-color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>Details for Wholesale Batch: {{wholesale_id}}</h1>
+
+    {{!-- Navigation partial --}}
+    {{!-- {{> navbar page='wholesale_details'}} --}}
+
+    {{#if message}}
+        <p class="text-center text-muted">{{message}}</p>
+    {{/if}}
+
+    {{!-- Display the WHOLESALE PRODUCTS (looping if more than one to show) --}}
+    {{#if wholesaleProducts}}
+        <h2>Wholesale Items in this Batch</h2>
+        {{#each wholesaleProducts}}
+            <div class="wholesale-item-section">
+                <h3>Item {{inc @index}}: {{this.description}}</h3>
+                <p><strong>ITEM:</strong> {{this.item}} | <strong>Brand:</strong> {{this.brand}} | <strong>Size:</strong> {{this.size}}</p>
+                <p><strong>Wholesale Cost:</strong> ${{this.wholesaleCost}} | <strong>Pack Size:</strong> {{this.packSize}} | <strong>Qty:</strong> {{this.qty}}</p>
+                <p><em>Uploaded on: {{this.createdAt}}</em></p>
+            </div>
+        {{/each}}
+
+        {{!-- Pagination for Wholesale Products --}}
+        {{#if wholesaleTotalPages}} {{!-- Check if totalPages is defined and > 0 --}}
+        <div class="pagination-container">
+            {{!-- Previous Page Link --}}
+            {{#if_gt wholesaleCurrentPage 1}}
+                <a href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}">« Previous</a>
+            {{else}}
+                <span class="disabled">&laquo; Previous</span>
+            {{/if_gt}}
+
+            {{!-- Page Numbers --}}
+            {{#range 1 wholesaleTotalPages}}
+                <a href="{{wholesalePageUrl}}{{@index}}" class="{{#if_eq @index wholesaleCurrentPage}}active{{/if_eq}}">{{@index}}</a>
+            {{/range}}
+
+            {{!-- Next Page Link --}}
+            {{#if_lt wholesaleCurrentPage wholesaleTotalPages}}
+                <a href="{{wholesalePageUrl}}{{inc currentPage}}">Next &raquo;</a>
+            {{else}}
+                <span class="disabled">Next &raquo;</span>
+            {{/if_lt}}
+        </div>
+        {{/if}}
+        {{!-- END Wholesale Product Pagination --}}
+
+        {{!-- Display Amazon Search Results (if any) ---}}
+        {{!-- We display ALL found Amazon results for the batch here, under the first wholesale product --}}
+        {{!-- If you need results PER wholesale item, this structure needs more complexity --}}
+        {{#if amazonResults}}
+            <div class="amazon-results-section">
+                <h2>Amazon Search Results for Batch</h2>
+                <div class="table-container">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Brand</th>
+                                <th>Price</th>
+                                <th>Rating</th>
+                                <th>Reviews</th>
+                                <th>Seller</th>
+                                <th>Thumbnail</th>
+                                <th>Recent Sales</th>
+                                <th>Link</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each amazonResults}}
+                            <tr>
+                                <td>{{this.title}}</td>
+                                <td>{{this.brand}}</td>
+                                <td>{{this.price}}</td>
+                                <td>{{this.rating}} / 5</td>
+                                <td>{{this.reviews}}</td>
+                                <td>{{this.seller}}</td>
+                                <td>{{#if this.thumbnail}}<img width="50" height="50" src="{{this.thumbnail}}" alt="Thumbnail">{{else}}N/A{{/if}}</td>
+                                <td>{{this.recent_sales}}</td>
+                                <td><a href="{{this.link}}" target="_blank" rel="noopener noreferrer">View</a></td>
+                            </tr>
+                            {{else}} {{!-- This else is for the #each loop --}}
+                            <tr>
+                                <td colspan="9" class="text-center no-results">No Amazon results found for this batch.</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{else}}
+            {{!-- This else is for the outer #if amazonResults --}}
+            {{!-- Only show this message if there were wholesale products but no Amazon results --}}
+            {{#if wholesaleProducts}} {{!-- Check if we had wholesale products to show --}}
+                 <p class="text-center no-results">No Amazon search results were found for this batch.</p>
+            {{/if}}
+        {{/if}}
+
+    {{else}}
+        {{!-- This handles if wholesaleProducts was empty or null --}}
+        <p class="text-center text-muted">No wholesale products were found for this batch ID.</p>
+    {{/if}}
+
+    <p><a href="/wholesale-list">Back to Wholesale Batches List</a></p>
+    <p><a href="/wholesale">Upload New Wholesale CSV</a></p>
+    <p><a href="/">Go to Home</a></p>
+
+</body>
+</html>
