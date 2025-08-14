@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wholesale Product Analysis Results</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <h1>Wholesale Product Analysis Results</h1>
+    <h2>Upload ID: {{wholesale_id}}</h2>
+
+    {{#if results}}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Your Product</th>
+                    <th>Amazon Search Results</th>
+                    <th>Analysis</th> {{!-- You'll add analysis here --}}
+                </tr>
+            </thead>
+            <tbody>
+                {{#each results}}
+                    <tr>
+                        <td>
+                            <p><strong>{{this.originalProduct.description}}</strong></p>
+                            <p>Brand: {{this.originalProduct.itemBrand}}</p>
+                            <p>Wholesale Cost: ${{this.originalProduct.wholesaleCost}}</p>
+                            <p>Pack Size: {{this.originalProduct.packSize}}</p>
+                        </td>
+                        <td>
+                            {{#if this.apiResult}}
+                                <p><strong>{{this.apiResult.title}}</strong></p>
+                                <p>Brand: {{this.apiResult.brand}}</p>
+                                <p>Price: {{this.apiResult.price}}</p>
+                                <p>Rating: {{this.apiResult.rating}} ({{this.apiResult.reviews}} reviews)</p>
+                                <p><a href="{{this.apiResult.link}}" target="_blank">View on Amazon</a></p>
+                            {{else}}
+                                <p>No Amazon product found.</p>
+                            {{/if}}
+                        </td>
+                        <td>
+                            <!-- Placeholder for analysis -->
+                            <p>Profitability Analysis: [To be implemented]</p>
+                        </td>
+                    </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    {{else}}
+        <p>No results to display or an error occurred during processing.</p>
+    {{/if}}
+
+    <p><a href="/list">Back to List</a></p>
+</body>
+</html>
