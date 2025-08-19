@@ -70,6 +70,9 @@ app.engine('handlebars', handlebars.engine({
             }
             return ''; // Aprovado
         },
+        eq: function (a, b) {
+            return a === b;
+        },
     }
 }))
 
@@ -451,8 +454,8 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
                     'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
                     'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
-                    'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Staples', 'Target', 
-                    'VitaCost', 'Walmart', 'Walgreens'
+                    'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
+                    'Target', 'VitaCost', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
                 ];
                 
                 for (let i = 0; i < productsAPI.length; i++) {
@@ -463,9 +466,27 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     let sellerApproved = false;
                     if (seller) {
                         const normalizedSeller = seller.trim();
-                        sellerApproved = approvedSellers.some(approved => 
-                            normalizedSeller.toLowerCase().includes(approved.toLowerCase())
-                        );
+                        // Use exact match or starts with to avoid false positives
+                        sellerApproved = approvedSellers.some(approved => {
+                            const approvedLower = approved.toLowerCase();
+                            const sellerLower = normalizedSeller.toLowerCase();
+                            
+                            // Exact match
+                            if (sellerLower === approvedLower) return true;
+                            
+                            // Starts with approved seller (e.g., "Walmart" matches "Walmart Store")
+                            if (sellerLower.startsWith(approvedLower + ' ') || 
+                                sellerLower.startsWith(approvedLower + '-') ||
+                                sellerLower.startsWith(approvedLower + '_')) return true;
+                            
+                            // Special case for Walmart variations
+                            if (approvedLower === 'walmart' && 
+                                (sellerLower === 'walmart' || 
+                                 sellerLower === 'walmart.com' ||
+                                 sellerLower === 'walmart store')) return true;
+                            
+                            return false;
+                        });
                     }
                     
                     if (sellerApproved) {
