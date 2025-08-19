@@ -485,6 +485,12 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                                  sellerLower === 'walmart.com' ||
                                  sellerLower === 'walmart store')) return true;
                             
+                            // Special case for Stop&Shop variations (with and without spaces)
+                            if (approvedLower === 'stop&shop' && 
+                                (sellerLower === 'stop&shop' || 
+                                 sellerLower === 'stop & shop' ||
+                                 sellerLower === 'stop and shop')) return true;
+                            
                             return false;
                         });
                     }
