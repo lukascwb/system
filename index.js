@@ -1225,7 +1225,7 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
 
             if (firstProductForSearch) {
                 const searchItem = firstProductForSearch.description || firstWholesaleProduct.item; // Use description, fallback to item
-                const searchBrand =  .brand;
+                const searchBrand =  brand;
 
                 if (searchItem || searchBrand) {
                     console.log(`Performing dynamic search for: "${searchItem}" / "${searchBrand}"`);
