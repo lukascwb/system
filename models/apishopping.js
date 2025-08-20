@@ -5,6 +5,20 @@ const async = require('async');
 const db = require('./database');
 const { FOREIGNKEYS } = require("sequelize/lib/query-types");
 
+// Utility function to clean and parse prices from CSV (handles European format with commas)
+function cleanAndParsePrice(priceString) {
+    if (!priceString || priceString === '' || priceString === '-') return 0;
+    try {
+        // Remove $, trim spaces, replace comma with dot for decimal separator
+        const cleanPrice = priceString.replace('$', '').trim().replace(',', '.');
+        const parsedPrice = parseFloat(cleanPrice);
+        return isNaN(parsedPrice) ? 0 : parsedPrice;
+    } catch (error) {
+        console.error("Error parsing price:", priceString, error);
+        return 0;
+    }
+}
+
 async function insertProductData(lineKeepa) {
 
     try {
@@ -263,38 +277,52 @@ function avgPriceKeepa(keepaRecord) {
     let sumKeepaPrice = 0;
     let priceCount = 0;
 
-    // Check each price, add to sum if not null or empty
-    if (data['Buy Box: Current'] && data['Buy Box: Current'] !== '') {
-        sumKeepaPrice += parseFloat(data['Buy Box: Current'].replace('$', ''));
-        priceCount++;
+    // Check each price, add to sum if not null, empty, or '-'
+    if (data['Buy Box: Current'] && data['Buy Box: Current'] !== '' && data['Buy Box: Current'] !== '-') {
+        const price = cleanAndParsePrice(data['Buy Box: Current']);
+        if (price > 0) {
+            sumKeepaPrice += price;
+            priceCount++;
+        }
     }
-    if (data['Buy Box: 90 days avg.'] && data['Buy Box: 90 days avg.'] !== '') {
-        sumKeepaPrice += parseFloat(data['Buy Box: 90 days avg.'].replace('$', ''));
-        priceCount++;
+    if (data['Buy Box: 90 days avg.'] && data['Buy Box: 90 days avg.'] !== '' && data['Buy Box: 90 days avg.'] !== '-') {
+        const price = cleanAndParsePrice(data['Buy Box: 90 days avg.']);
+        if (price > 0) {
+            sumKeepaPrice += price;
+            priceCount++;
+        }
     }
-
 
     if (priceCount == 0) {
-        // Check each price, add to sum if not null or empty
-        if (data['New: Current'] && data['New: Current'] !== '') {
-            sumKeepaPrice += parseFloat(data['New: Current'].replace('$', ''));
-            priceCount++;
+        // Check each price, add to sum if not null, empty, or '-'
+        if (data['New: Current'] && data['New: Current'] !== '' && data['New: Current'] !== '-') {
+            const price = cleanAndParsePrice(data['New: Current']);
+            if (price > 0) {
+                sumKeepaPrice += price;
+                priceCount++;
+            }
         }
-        if (data['New: 30 days avg.'] && data['New: 30 days avg.'] !== '') {
-            sumKeepaPrice += parseFloat(data['New: 30 days avg.'].replace('$', ''));
-            priceCount++;
+        if (data['New: 30 days avg.'] && data['New: 30 days avg.'] !== '' && data['New: 30 days avg.'] !== '-') {
+            const price = cleanAndParsePrice(data['New: 30 days avg.']);
+            if (price > 0) {
+                sumKeepaPrice += price;
+                priceCount++;
+            }
         }
-        if (data['New: 180 days avg.'] && data['New: 180 days avg.'] !== '') {
-            sumKeepaPrice += parseFloat(data['New: 180 days avg.'].replace('$', ''));
-            priceCount++;
+        if (data['New: 180 days avg.'] && data['New: 180 days avg.'] !== '' && data['New: 180 days avg.'] !== '-') {
+            const price = cleanAndParsePrice(data['New: 180 days avg.']);
+            if (price > 0) {
+                sumKeepaPrice += price;
+                priceCount++;
+            }
         }
     }
 
-    // Calculate average only if there are prices to average
+    // Calculate average only if there are valid prices to average
     if (priceCount > 0) {
         return (sumKeepaPrice / priceCount).toFixed(2);
     } else {
-        return 0; // Or your preferred default value
+        return 'N/A'; // Return N/A if no valid prices found
     }
 }
 
