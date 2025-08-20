@@ -487,7 +487,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     } else {
                         console.log(`Product ${i + 1} - Seller REJECTED: ${seller} - Motivo: Vendedor não aprovado`);
                         product.geminiStatus = "Reprovado";
-                        product.geminiReason = "Vendedor não aprovado";
+                        product.geminiReason = "Vendedor reprovado";
                     }
                 }
                 console.log('=== SELLER PRE-FILTER END ===');
