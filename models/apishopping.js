@@ -35,15 +35,15 @@ async function insertProductData(lineKeepa) {
         const response = await axios.get(url, { params });
         if (response.data && response.data.shopping_results && Array.isArray(response.data.shopping_results)) {
 
-            let dataGoogleShoppingAPI = {
-                keepa_id: lineKeepa.keepa_id,
-                status: response.data.search_metadata.status || null,
-                total_time_taken: response.data.search_metadata.total_time_taken || null,
-                html_url: response.data.search_metadata.html_url || null,
-                json_url: response.data.search_metadata.json_url || null,
-                q: response.data.search_parameters.q || null,
-                request_url: response.data.search_parameters.request_url || null
-            };
+                    let dataGoogleShoppingAPI = {
+            keepa_id: lineKeepa.keepa_id,
+            status: response.data.search_metadata.status || null,
+            total_time_taken: response.data.search_metadata.total_time_taken || null,
+            html_url: response.data.search_metadata.html_url || null,
+            json_url: response.data.search_metadata.json_url || null,
+            q: (response.data.search_parameters.q || '').substring(0, 255),
+            request_url: response.data.search_parameters.request_url || null
+        };
 
             const newApi = await Api.create(dataGoogleShoppingAPI);
             var length = response.data.shopping_results.length ? response.data.shopping_results.length > 14 ? 14 : response.data.shopping_results.length : 0;
