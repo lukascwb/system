@@ -442,12 +442,12 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
                     'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
                     'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
-                    'Target', 'VitaCost', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
+                    'Target', 'VitaCost', 'vitacost.com', 'Instacart','Walmart', 'Walgreens', 'WebstaurantStore.com'
                 ];
                 
                 for (let i = 0; i < productsAPI.length; i++) {
                     const product = productsAPI[i];
-                    const seller = product.seller;
+                    const seller = product.seller;  
                     
                     // Check if seller is approved
                     let sellerApproved = false;
