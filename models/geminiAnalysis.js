@@ -98,25 +98,45 @@ For each product in the shopping results:
 
 async function analyzeTitles(keepaTitle, productTitle) {
     try {
-        const prompt = `Analise se os dois títulos de produtos se referem ao mesmo produto:
+        const prompt = `Analise se os dois títulos de produtos se referem ao EXATO mesmo produto:
 
 Título do Keepa: "${keepaTitle}"
 Título do Produto: "${productTitle}"
 
-REGRAS RIGOROSAS:
+REGRAS RIGOROSAS PARA APROVAÇÃO:
 
-APROVE APENAS se:
-- For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
-- E o modelo, estilo, cor, sabor, etc., forem EXATAMENTE os mesmos entre Keepa e Shopping
+APROVE APENAS se TODOS os critérios forem atendidos EXATAMENTE:
+1. MESMA MARCA (exato match, incluindo variações de escrita)
+2. MESMO NOME/MODELO PRINCIPAL (exato match)
+3. MESMA CONCENTRAÇÃO/POTÊNCIA (se aplicável)
+4. MESMO TAMANHO/QUANTIDADE (exato match, incluindo unidades)
+5. MESMA FORMA/APRESENTAÇÃO (líquido, cápsula, pó, shake, etc.)
+6. MESMAS ESPECIFICAÇÕES TÉCNICAS (se aplicável)
+7. MESMOS INGREDIENTES PRINCIPAIS (se especificados)
+8. MESMA EMBALAGEM/QUANTIDADE POR PACOTE
 
-REPROVE se:
-- Marca diferente (ex: 3M vs Filtrete)
-- Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
-- Produto completamente diferente
-- Modelo, estilo, cor, sabor, etc., são diferentes entre Keepa e Shopping
+EXEMPLOS DE REPROVAÇÃO:
+- "Slimfast High Protein Ready to Drink Creamy Chocolate 11oz 12ct" vs "Nutrition Plan High Protein Chocolate 30g Shake 11.5fl.oz 12 Pack" → REPROVADO (marcas diferentes: Slimfast vs Nutrition Plan)
+- "Energy Boost 70 Fulvic Minerals" vs "Energy Boost 70 Concentrate" → REPROVADO (diferentes especificações)
+- "Vitamin C 1000mg 60 tablets" vs "Vitamin C 1000mg 120 tablets" → REPROVADO (quantidade diferente)
+- "Protein Powder Vanilla 2lb" vs "Protein Powder Chocolate 2lb" → REPROVADO (sabor diferente)
+- "Omega-3 1000mg Fish Oil" vs "Omega-3 1000mg Flaxseed Oil" → REPROVADO (fonte diferente)
+- "Multivitamin Men 50+" vs "Multivitamin Women 50+" → REPROVADO (público-alvo diferente)
+- "Protein Shake Chocolate 12oz" vs "Protein Shake Chocolate 16oz" → REPROVADO (tamanho diferente)
+- "Organic Green Tea 100 bags" vs "Green Tea 100 bags" → REPROVADO (especificação diferente: orgânico vs não orgânico)
 
-Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Modelo diferente").
-O motivo deve ser objetivo e máximo 2 palavras.`;
+EXEMPLOS DE APROVAÇÃO:
+- "Vitamin D3 2000IU 60 Softgels" vs "Vitamin D3 2000IU 60 Softgels" → APROVADO
+- "Protein Powder Vanilla 2lb" vs "Protein Powder Vanilla 2lb" → APROVADO
+
+IMPORTANTE: 
+- "Slimfast" ≠ "Nutrition Plan" (marcas diferentes)
+- "11oz" ≠ "11.5fl.oz" (tamanhos diferentes)
+- "Ready to Drink" ≠ "Shake" (formatos diferentes)
+- "Creamy Chocolate" ≠ "Chocolate" (especificações diferentes)
+
+Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Tamanho diferente").
+O motivo deve ser objetivo e máximo 3 palavras.`;
 
         const API_KEY = process.env.GOOGLE_API_KEY;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
