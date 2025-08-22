@@ -23,7 +23,12 @@ jobs:
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         SEARCHAPI_KEY: ${{ secrets.SEARCHAPI_KEY }}
+        secret: ${{ secrets.SESSION_SECRET }}
       run: |
-        echo "Deploying with Google API Key from GitHub secrets..."
-        # Aqui você coloca o comando para fazer deploy
-        # Por exemplo, se estiver usando Railway, Heroku, etc.
+        echo "Deploying to Railway with environment variables..."
+        
+    - name: Deploy to Railway
+      uses: bervProject/railway-deploy@v1.0.0
+      with:
+        service: ${{ secrets.RAILWAY_SERVICE }}
+        token: ${{ secrets.RAILWAY_TOKEN }}
