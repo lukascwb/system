@@ -55,7 +55,8 @@ For each product in the shopping results:
 4. Output as JSON array:  [{ "title": "...", "seller": "...", "price": ..., "nearby": true/false, "profit": ..., "roi": ... }]`;
 
 
-        const API_KEY = process.env.GOOGLE_API_KEY; //Get API Key from environment variables
+        // Usa a chave do GitHub em produção, senão usa do .env local
+        const API_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY_LOCAL;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
         const requestData = {
@@ -118,7 +119,8 @@ REPROVE se:
 Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Modelo diferente").
 O motivo deve ser objetivo e máximo 2 palavras.`;
 
-        const API_KEY = process.env.GOOGLE_API_KEY;
+        // Usa a chave do GitHub em produção, senão usa do .env local
+        const API_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY_LOCAL;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
         const requestData = {

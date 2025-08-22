@@ -83,7 +83,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Session middleware
 app.use(session({
-    secret: process.env.secret, // Replace with a strong, random secret
+    secret: process.env.SESSION_SECRET || process.env.secret, // Usa SESSION_SECRET do GitHub, senão usa secret local
     resave: false,
     saveUninitialized: false
 }));

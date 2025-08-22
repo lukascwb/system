@@ -14,7 +14,7 @@ async function insertProductData(lineKeepa) {
             "engine": "google_shopping",
             "q": `${lineKeepa.Title} near 02721 nearby walmart, target, bjs, Stop & Shop`,
             "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
-            "api_key": process.env.api_key,
+            "api_key": process.env.SEARCHAPI_KEY || process.env.API_KEY_LOCAL,
             "tbs": "mr:1,local_avail:1,ss:30"
         };
 
@@ -95,7 +95,7 @@ async function getProductData(tblKeepa) {
                     "engine": "google_shopping",
                     "q": `${title} near 02721`,
                     "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
-                    "api_key": process.env.api_key,
+                    "api_key": process.env.SEARCHAPI_KEY || process.env.API_KEY_LOCAL,
                     "tbs": "mr:1,local_avail:1,ss:30",
                     "gl": "us",
                 };
@@ -429,7 +429,7 @@ app.get("/api", function (req, res) {
         "engine": "google_shopping",
         "q": "PS5",
         "location": "Massachusetts, United States",
-        "api_key": process.env.api_key
+        "api_key": process.env.SEARCHAPI_KEY || process.env.API_KEY_LOCAL
     };
 
     axios.get(url)
