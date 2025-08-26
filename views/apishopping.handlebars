@@ -59,7 +59,7 @@
               <div class="product-result ">
                 <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
                 <a style="color: white;" target="_blank" href="{{link}}">
-                  <p class="text-wrap {{#if (eq geminiStatus 'Aprovado')}}approved{{else if (eq geminiReason 'Preço muito alto')}}roi-rejected{{else}}rejected{{/if}}">
+                                     <p class="text-wrap {{#if (eq geminiStatus 'Aprovado')}}approved{{else if (eq geminiReason 'Preço muito alto')}}roi-rejected{{else if (eq geminiReason 'Quantidade diferente')}}quantity-different{{else if (eq geminiStatus 'Sem Tamanho')}}size-not-specified{{else}}rejected{{/if}}">
                     {{title}} - {{price}} - {{seller}}{{#if (eq geminiStatus 'Aprovado')}} - Aprovado{{else}} - {{geminiReason}}{{/if}}
                   </p>
                 </a>
@@ -179,6 +179,16 @@
 
   .text-wrap.roi-rejected {
     color: #ffc107 !important;  /* Amarelo: Apenas quando ROI/Preço não aprovado */
+    font-weight: bold;
+  }
+
+  .text-wrap.quantity-different {
+    color: #ffffff !important;  /* Branco: Quantidade diferente - pode ser adequado para o cliente */
+    font-weight: bold;
+  }
+
+  .text-wrap.size-not-specified {
+    color: #ffffff !important;  /* Branco: Tamanho não especificado - pode ser adequado para o cliente */
     font-weight: bold;
   }
 </style>

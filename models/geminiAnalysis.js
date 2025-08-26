@@ -98,6 +98,16 @@ For each product in the shopping results:
 
 async function analyzeTitles(keepaTitle, productTitle) {
     try {
+        // First, do a quick rule-based check for obvious matches
+        const ruleBasedResult = quickRuleBasedMatch(keepaTitle, productTitle);
+        if (ruleBasedResult.status === "Aprovado") {
+            console.log('Rule-based match found - skipping AI analysis');
+            return ruleBasedResult;
+        }
+        
+        // If rule-based check fails, use AI for more complex analysis
+        console.log('Rule-based check failed - using AI analysis');
+        
         const prompt = `Analise se os dois títulos de produtos se referem ao EXATO mesmo produto:
 
 Título do Keepa: "${keepaTitle}"
@@ -186,8 +196,25 @@ O motivo deve ser objetivo e máximo 3 palavras.`;
             finalReason = null;
         } else if (result.includes("|")) {
             const parts = result.split("|");
-            finalStatus = "Reprovado";
-            finalReason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+            const reason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+            
+            // Check if the reason is about size and if the product title doesn't specify size
+            if (reason.toLowerCase().includes("tamanho") || reason.toLowerCase().includes("size")) {
+                const keepaHasSize = hasSizeSpecification(keepaTitle);
+                const productHasSize = hasSizeSpecification(productTitle);
+                
+                                 // If Keepa has size but product doesn't, mark as "Sem Tamanho"
+                 if (keepaHasSize && !productHasSize) {
+                     finalStatus = "Sem Tamanho";
+                     finalReason = "Sem Tamanho";
+                 } else {
+                    finalStatus = "Reprovado";
+                    finalReason = reason;
+                }
+            } else {
+                finalStatus = "Reprovado";
+                finalReason = reason;
+            }
         } else {
             finalStatus = "Reprovado";
             finalReason = "Análise falhou";
@@ -208,6 +235,159 @@ O motivo deve ser objetivo e máximo 3 palavras.`;
             reason: "Erro na análise"
         };
     }
+}
+
+// Function to check if a title has size/weight specifications
+function hasSizeSpecification(title) {
+    if (!title) return false;
+    
+    // Common size/weight patterns
+    const sizePatterns = [
+        /\b\d+(?:\.\d+)?\s*(?:oz|ounce|ounces|fl\.?\s*oz|fl\.?\s*ounce|fl\.?\s*ounces)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:g|gram|grams)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:lb|lbs|pound|pounds)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:kg|kilogram|kilograms)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:ml|milliliter|milliliters)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:l|liter|liters)\b/gi,
+        /\b\d+\s*(?:count|ct|pack|packs|piece|pieces|unit|units)\b/gi,
+        /\b(?:family\s+size|party\s+size|large|medium|small|mini|regular)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:serving|servings)\b/gi
+    ];
+    
+    return sizePatterns.some(pattern => pattern.test(title));
+}
+
+// Rule-based matching function for quick checks
+function quickRuleBasedMatch(keepaTitle, productTitle) {
+    if (!keepaTitle || !productTitle) {
+        return { status: "Reprovado", reason: "Título vazio" };
+    }
+    
+    // Normalize titles for comparison
+    const normalizeTitle = (title) => {
+        return title.toLowerCase()
+            .replace(/[^\w\s]/g, ' ') // Remove special characters
+            .replace(/\s+/g, ' ') // Normalize spaces
+            .trim();
+    };
+    
+    const keepaNormalized = normalizeTitle(keepaTitle);
+    const productNormalized = normalizeTitle(productTitle);
+    
+    // Check for exact match (after normalization)
+    if (keepaNormalized === productNormalized) {
+        return { status: "Aprovado", reason: null };
+    }
+    
+    // Check for high similarity (90%+ match)
+    const similarity = calculateSimilarity(keepaNormalized, productNormalized);
+    if (similarity >= 0.9) {
+        return { status: "Aprovado", reason: null };
+    }
+    
+    // Check for key brand and product matches
+    const keepaWords = keepaNormalized.split(' ');
+    const productWords = productNormalized.split(' ');
+    
+    // Extract brand (first word or common brands)
+    const commonBrands = [
+        'twix', 'snickers', 'mars', 'kit', 'kat', 'reeses', 'm&m', 'hershey', 'cadbury',
+        'dove', 'milky', 'way', 'butterfinger', 'baby', 'ruth', 'almond', 'joy', 'mounds',
+        'york', 'peppermint', 'patty', 'junior', 'mints', 'rolo', 'caramello', 'take', 'five',
+        'unreal', 'lindt', 'ghirardelli', 'godiva', 'milka', 'ferrero', 'rocher',
+        'toblerone', 'wrigley', 'haribo', 'skittles', 'starburst', 'jolly', 'rancher',
+        'airheads', 'nerds', 'sour', 'patch', 'swedish', 'fish', 'gummy', 'bears',
+        'worms', 'jelly', 'beans', 'mike', 'ike', 'partake', 'kindling', 'protein',
+        'pretzels', 'graham', 'cracker', 'minis', 'vegan', 'special', 'k', 'rice',
+        'krispies', 'frosted', 'flakes', 'corn', 'pops', 'lucky', 'charms', 'cinnamon',
+        'toast', 'crunch', 'honey', 'nut', 'cheerios', 'wheaties', 'total', 'raisin',
+        'bran', 'shredded', 'wheat', 'cocoa', 'puffs', 'trix', 'fruity', 'pebbles',
+        'captain', 'crunch', 'life', 'cereal'
+    ];
+    
+    // Find brand in both titles
+    let keepaBrand = null;
+    let productBrand = null;
+    
+    for (const word of keepaWords) {
+        if (commonBrands.includes(word)) {
+            keepaBrand = word;
+            break;
+        }
+    }
+    
+    for (const word of productWords) {
+        if (commonBrands.includes(word)) {
+            productBrand = word;
+            break;
+        }
+    }
+    
+    // If brands don't match, reject
+    if (keepaBrand && productBrand && keepaBrand !== productBrand) {
+        return { status: "Reprovado", reason: "Marca diferente" };
+    }
+    
+    // If brands match, check for key product identifiers
+    if (keepaBrand && productBrand && keepaBrand === productBrand) {
+        // Extract key product words (excluding brand and common words)
+        const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
+        const keepaProductWords = keepaWords.filter(word => !commonWords.includes(word) && word !== keepaBrand);
+        const productProductWords = productWords.filter(word => !commonWords.includes(word) && word !== productBrand);
+        
+        // Check if at least 70% of product words match
+        const matchingWords = keepaProductWords.filter(word => productProductWords.includes(word));
+        const matchPercentage = matchingWords.length / Math.max(keepaProductWords.length, productProductWords.length);
+        
+        if (matchPercentage >= 0.7) {
+            return { status: "Aprovado", reason: null };
+        }
+    }
+    
+    // If no rule-based match found, let AI handle it
+    return { status: "Reprovado", reason: "Necessita análise AI" };
+}
+
+// Calculate similarity between two strings
+function calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) {
+        return 1.0;
+    }
+    
+    const editDistance = levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+}
+
+// Levenshtein distance calculation
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
 }
 
 module.exports = { analyzeProduct, analyzeTitles };

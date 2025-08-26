@@ -263,7 +263,7 @@ app.get('/generate', authenticate, async function (req, res) {
   });
   
 */
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 4;
 
 // Utility function to clean and parse prices from CSV (handles European format with commas)
 function cleanAndParsePrice(priceString) {
@@ -379,6 +379,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
 
             return data;
         });
+        
 
         //var { productsAPI} = await apishopping.feedTableProducts(tblKeepa);
 
@@ -437,50 +438,13 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
 
                 // SELLER PRE-FILTER: Check seller before sending to Gemini
                 console.log('=== SELLER PRE-FILTER START ===');
-                const approvedSellers = [
-                    'Ace Hardware', 'Best Buy', 'BJ\'s', 'CVS', 'Dick\'s Sporting Goods', 
-                    'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
-                    'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
-                    'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
-                    'Target', 'VitaCost', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
-                ];
                 
                 for (let i = 0; i < productsAPI.length; i++) {
                     const product = productsAPI[i];
                     const seller = product.seller;
                     
-                    // Check if seller is approved
-                    let sellerApproved = false;
-                    if (seller) {
-                        const normalizedSeller = seller.trim();
-                        // Use exact match or starts with to avoid false positives
-                        sellerApproved = approvedSellers.some(approved => {
-                            const approvedLower = approved.toLowerCase();
-                            const sellerLower = normalizedSeller.toLowerCase();
-                            
-                            // Exact match
-                            if (sellerLower === approvedLower) return true;
-                            
-                            // Starts with approved seller (e.g., "Walmart" matches "Walmart Store")
-                            if (sellerLower.startsWith(approvedLower + ' ') || 
-                                sellerLower.startsWith(approvedLower + '-') ||
-                                sellerLower.startsWith(approvedLower + '_')) return true;
-                            
-                            // Special case for Walmart variations
-                            if (approvedLower === 'walmart' && 
-                                (sellerLower === 'walmart' || 
-                                 sellerLower === 'walmart.com' ||
-                                 sellerLower === 'walmart store')) return true;
-                            
-                            // Special case for Stop&Shop variations (with and without spaces)
-                            if (approvedLower === 'stop&shop' && 
-                                (sellerLower === 'stop&shop' || 
-                                 sellerLower === 'stop & shop' ||
-                                 sellerLower === 'stop and shop')) return true;
-                            
-                            return false;
-                        });
-                    }
+                    // Use the same isApprovedSeller function from apishopping.js
+                    const sellerApproved = apishopping.isApprovedSeller(seller);
                     
                     if (sellerApproved) {
                         console.log(`Product ${i + 1} - Seller APPROVED: ${seller}`);
@@ -496,12 +460,29 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                 console.log('=== PRICE PRE-FILTER START ===');
                 console.log('Keepa New Current Price:', keepaRecord['New: Current']);
                 
+                // Check if we have valid Keepa price data
+                const hasValidKeepaPrice = keepaRecord['New: Current'] && 
+                                         keepaRecord['New: Current'] !== '' && 
+                                         keepaRecord['New: Current'] !== '-' && 
+                                         keepaRecord['New: Current'] !== null;
+                
+                if (!hasValidKeepaPrice) {
+                    console.log('No valid Keepa price data available - Skipping price pre-filter');
+                    console.log('Products will proceed to Gemini analysis based on seller approval only');
+                }
+                
                 for (let i = 0; i < productsAPI.length; i++) {
                     const product = productsAPI[i];
                     
                     // Skip price check if seller was already rejected
                     if (product.geminiStatus === "Reprovado") {
                         console.log(`Product ${i + 1} - Skipping price check (seller rejected): ${product.title}`);
+                        continue;
+                    }
+                    
+                    // Skip price check if no valid Keepa price data
+                    if (!hasValidKeepaPrice) {
+                        console.log(`Product ${i + 1} - Skipping price check (no Keepa price data): ${product.title}`);
                         continue;
                     }
                     
@@ -570,45 +551,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                 const unitKeepa = apishopping.getUnitCount(keepaRecord.Title);
                 console.log('avg ' + avgKeepaPrice + ' u' + unitKeepa + ' w' + weightKeepa + ' t' + keepaRecord.Title)
 
-                productsAPI.forEach((apiRecord, productIndex) => {
-                    //if (productsAPI[keepaIndex].title != 'No Results') {
-                    if (productsAPI[keepaIndex] !== undefined && productsAPI[keepaIndex].title !== undefined && productsAPI[keepaIndex].title.trim() !== '') {
-                        let check = 0;
-                        const apiWeigth = apishopping.getWeight(apiRecord.title);
-                        let originalTitle = apiRecord.title;
-                        apiRecord.title = " " + apiRecord.title;
-                        let storePrice = 0;
-                        try {
-                             storePrice = cleanAndParsePrice(apiRecord.price) * unitKeepa * 2;
-                        } catch (error) {
-                            console.error("Error processing 'storePrice':", error);
-                            storePrice = 0; // Default or handle error as needed
-                        }
-                        //console.log('storePrice ' + storePrice + ' avg ' + avgKeepaPrice + ' w' + weightKeepa + ' t' + apiRecord.title)
-                        //check Prices
-                        if (storePrice > 0)
-                        if (storePrice < avgKeepaPrice) {
-                            apiRecord.title = "💰" + apiRecord.title;
-                            check += 1;
-                        } else apiRecord.title = "📛" + apiRecord.title;
-
-                        if (weightKeepa * 0.75 < apiWeigth && weightKeepa * 1.25 > apiWeigth) {
-                            apiRecord.title = "⚖️" + apiRecord.title;
-                            check += 1;
-                        }
-                        //It`s a good product ✅
-                        if (check === 2)
-                            apiRecord.title = "✅ " + originalTitle;
-
-                        if ((weightKeepa != null && avgKeepaPrice > 0) && check === 0)
-                            apiRecord.title = "❌" + apiRecord.title // Has the information and don't match
-                        else if (weightKeepa === null || avgKeepaPrice === 0)// IF Doesn't has the information
-                            if (emojiX) {//We can't check(don't have all info)"⚠️"
-                                tblKeepa[keepaIndex].Title = "⚠️" + tblKeepa[keepaIndex].Title;//apiRecord.title = "⚠️" + apiRecord.title
-                                emojiX = false;
-                            }
-                    }
-                });
+                
 
                 return {
                     ...keepaRecord,
@@ -743,6 +686,12 @@ app.get("/keepa", authenticate, function (req, res) {
 });
 
 
+// Function to remove emojis from strings
+function removeEmojis(str) {
+    if (!str) return str;
+    return str.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+}
+
 app.post('/upload', authenticate, upload.single('keepaCSV'), async (req, res) => {
     // try {
     //     const csvFilePath = req.file.path;
@@ -782,10 +731,30 @@ app.post('/upload', authenticate, upload.single('keepaCSV'), async (req, res) =>
         let failedLines = 0;
         let errorMessages = [];
 
-        parse(fs.readFileSync(csvFilePath), {
+        // Read file and remove BOM if present
+        let csvContent = fs.readFileSync(csvFilePath, 'utf8');
+        // Remove UTF-8 BOM if present
+        if (csvContent.charCodeAt(0) === 0xFEFF) {
+            csvContent = csvContent.slice(1);
+        }
+        
+        parse(csvContent, {
             columns: true,
             skip_empty_lines: true
         }, async (err, records) => {
+            // Clean headers by removing emojis
+            if (records && records.length > 0) {
+                const firstRecord = records[0];
+                const cleanedRecords = records.map(record => {
+                    const cleanedRecord = {};
+                    Object.keys(record).forEach(key => {
+                        const cleanedKey = removeEmojis(key);
+                        cleanedRecord[cleanedKey] = record[key];
+                    });
+                    return cleanedRecord;
+                });
+                records = cleanedRecords;
+            }
             if (err) {
                 console.error("Error 500 - CSV parsing error:", err);
                 res.status(500).json({
