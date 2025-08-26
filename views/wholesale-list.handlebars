@@ -1,35 +1,55 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Wholesale Upload Batches</title>
-    <link rel="stylesheet" href="/css/style.css"> <!-- Or your main stylesheet -->
-    <style>
-        .list-group-item { display: flex; justify-content: space-between; align-items: center; }
-    </style>
-</head>
-<body>
-    <h1>Wholesale Upload Batches</h1>
-
-    {{!-- Include your navigation partial here if you have one --}}
-    {{!-- {{> navbar page='wholesale_list'}} --}}
-
-    {{#if wholesaleIds}}
-        <ul class="list-group">
-             {{#each wholesaleIds}}
-                <li class="list-group-item">
-                    <span>{{this}}</span>
-                    {{!-- Link to view the details for this wholesale_id --}}
-                    <a href="/wholesale-products-by-id/{{this}}" class="btn btn-sm btn-outline-primary">View Details</a>
-                </li>
-            {{/each}}
-        </ul>
-    {{else}}
-        <p>No wholesale products have been uploaded yet.</p>
-    {{/if}}
-
-    <p><a href="/wholesale">Upload New Wholesale CSV</a></p>
-    <p><a href="/list">Back to Keepa List</a></p>
-    <p><a href="/">Go to Home</a></p>
-
-</body>
-</html>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Wholesale Upload Batches</h3>
+                    <a href="/wholesale" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Upload New Batch
+                    </a>
+                </div>
+                <div class="card-body">
+                    {{#if wholesaleIds}}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Batch ID</th>
+                                        <th>Upload Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {{#each wholesaleIds}}
+                                        <tr>
+                                            <td>
+                                                <strong>{{this}}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="text-muted">Uploaded batch</span>
+                                            </td>
+                                            <td>
+                                                <a href="/wholesale-products-by-id/{{this}}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>View Details
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {{/each}}
+                                </tbody>
+                            </table>
+                        </div>
+                    {{else}}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5>No wholesale products uploaded yet</h5>
+                            <p class="text-muted">Upload your first wholesale CSV file to get started with Amazon price analysis.</p>
+                            <a href="/wholesale" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i>Upload First Batch
+                            </a>
+                        </div>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

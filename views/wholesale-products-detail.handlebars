@@ -1,127 +1,296 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Wholesale Batch Details: {{wholesale_id}}</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wholesale Products Detail</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .table-container { overflow-x: auto; margin-bottom: 20px; }
-        .table th, .table td { white-space: nowrap; }
-        .no-results { font-style: italic; color: #6c757d; }
-        .wholesale-item-section { background-color: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #dee2e6; }
-        .wholesale-item-section h2 { margin-top: 0; font-size: 1.5em; }
-        .amazon-results-section { margin-top: 15px; }
-        .pagination-container { display: flex; justify-content: center; margin-top: 20px; }
-        .pagination-container a, .pagination-container span { margin: 0 5px; padding: 5px 10px; border: 1px solid #dee2e6; border-radius: .25rem; text-decoration: none; color: #007bff; }
-        .pagination-container .disabled { color: #6c757d; pointer-events: none; }
-        .pagination-container .active { background-color: #007bff; color: white; border-color: #007bff; }
+        .zoom {
+            transition: transform .2s;
+            cursor: pointer;
+        }
+        .zoom:hover {
+            transform: scale(6);
+            position: absolute;
+            transform-origin: center center;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .wholesale-thumbnail {
+            max-width: 80px;
+            max-height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .amazon-thumbnail {
+            width: 30px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 2px;
+        }
+        .profitability-breakdown {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .cost-breakdown {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
-    <h1>Details for Wholesale Batch: {{wholesale_id}}</h1>
-
-    {{!-- Navigation partial --}}
-    {{!-- {{> navbar page='wholesale_details'}} --}}
-
-    {{#if message}}
-        <p class="text-center text-muted">{{message}}</p>
-    {{/if}}
-
-    {{!-- Display the WHOLESALE PRODUCTS (looping if more than one to show) --}}
-    {{#if wholesaleProducts}}
-        <h2>Wholesale Items in this Batch</h2>
-        {{#each wholesaleProducts}}
-            <div class="wholesale-item-section">
-                <h3>Item {{inc @index}}: {{this.description}}</h3>
-                <p><strong>ITEM:</strong> {{this.item}} | <strong>Brand:</strong> {{this.brand}} | <strong>Size:</strong> {{this.size}}</p>
-                <p><strong>Wholesale Cost:</strong> ${{this.wholesaleCost}} | <strong>Pack Size:</strong> {{this.packSize}} | <strong>Qty:</strong> {{this.qty}}</p>
-                <p><em>Uploaded on: {{this.createdAt}}</em></p>
-            </div>
-        {{/each}}
-
-        {{!-- Pagination for Wholesale Products --}}
-        {{#if wholesaleTotalPages}} {{!-- Check if totalPages is defined and > 0 --}}
-        <div class="pagination-container">
-            {{!-- Previous Page Link --}}
-            {{#if_gt wholesaleCurrentPage 1}}
-                <a href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}">« Previous</a>
-            {{else}}
-                <span class="disabled">&laquo; Previous</span>
-            {{/if_gt}}
-
-            {{!-- Page Numbers --}}
-            {{#range 1 wholesaleTotalPages}}
-                <a href="{{wholesalePageUrl}}{{@index}}" class="{{#if_eq @index wholesaleCurrentPage}}active{{/if_eq}}">{{@index}}</a>
-            {{/range}}
-
-            {{!-- Next Page Link --}}
-            {{#if_lt wholesaleCurrentPage wholesaleTotalPages}}
-                <a href="{{wholesalePageUrl}}{{inc currentPage}}">Next &raquo;</a>
-            {{else}}
-                <span class="disabled">Next &raquo;</span>
-            {{/if_lt}}
-        </div>
-        {{/if}}
-        {{!-- END Wholesale Product Pagination --}}
-
-        {{!-- Display Amazon Search Results (if any) ---}}
-        {{!-- We display ALL found Amazon results for the batch here, under the first wholesale product --}}
-        {{!-- If you need results PER wholesale item, this structure needs more complexity --}}
-        {{#if amazonResults}}
-            <div class="amazon-results-section">
-                <h2>Amazon Search Results for Batch</h2>
-                <div class="table-container">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Title</th>
-                                <th>Brand</th>
-                                <th>Price</th>
-                                <th>Rating</th>
-                                <th>Reviews</th>
-                                <th>Seller</th>
-                                <th>Thumbnail</th>
-                                <th>Recent Sales</th>
-                                <th>Link</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{#each amazonResults}}
-                            <tr>
-                                <td>{{this.title}}</td>
-                                <td>{{this.brand}}</td>
-                                <td>{{this.price}}</td>
-                                <td>{{this.rating}} / 5</td>
-                                <td>{{this.reviews}}</td>
-                                <td>{{this.seller}}</td>
-                                <td>{{#if this.thumbnail}}<img width="50" height="50" src="{{this.thumbnail}}" alt="Thumbnail">{{else}}N/A{{/if}}</td>
-                                <td>{{this.recent_sales}}</td>
-                                <td><a href="{{this.link}}" target="_blank" rel="noopener noreferrer">View</a></td>
-                            </tr>
-                            {{else}} {{!-- This else is for the #each loop --}}
-                            <tr>
-                                <td colspan="9" class="text-center no-results">No Amazon results found for this batch.</td>
-                            </tr>
-                            {{/each}}
-                        </tbody>
-                    </table>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Wholesale Batch: {{wholesale_id}}</h2>
+                    <a href="/wholesale-list" class="btn btn-secondary">← Back to List</a>
                 </div>
+
+                {{#if message}}
+                    <div class="alert alert-info">{{message}}</div>
+                {{/if}}
+
+                {{#if wholesaleProductsWithResults}}
+                    <div class="row">
+                        {{#each wholesaleProductsWithResults}}
+                            <div class="col-12 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Wholesale Product #{{inc @index}}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            {{!-- Wholesale Product Image --}}
+                                            {{#if this.wholesaleProduct.thumbnail}}
+                                                <div class="col-md-2">
+                                                    <img src="{{this.wholesaleProduct.thumbnail}}" 
+                                                         alt="Wholesale Product" 
+                                                         class="wholesale-thumbnail zoom"
+                                                         title="Click to enlarge">
+                                                </div>
+                                            {{/if}}
+                                            
+                                            {{!-- Product Details --}}
+                                            <div class="col-md-{{#if this.wholesaleProduct.thumbnail}}10{{else}}12{{/if}}">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <h6 class="text-primary">{{this.wholesaleProduct.title}}</h6>
+                                                        {{#if this.wholesaleProduct.brand}}
+                                                            <p class="mb-1"><strong>Brand:</strong> {{this.wholesaleProduct.brand}}</p>
+                                                        {{/if}}
+                                                        {{#if this.wholesaleProduct.size}}
+                                                            <p class="mb-1"><strong>Size:</strong> {{this.wholesaleProduct.size}}</p>
+                                                        {{/if}}
+                                                        {{#if this.wholesaleProduct.item}}
+                                                            <p class="mb-1"><strong>Item/SKU:</strong> {{this.wholesaleProduct.item}}</p>
+                                                        {{/if}}
+                                                        {{#if this.wholesaleProduct.packSize}}
+                                                            <p class="mb-1"><strong>Pack Size:</strong> {{this.wholesaleProduct.packSize}}</p>
+                                                        {{/if}}
+                                                        {{#if this.wholesaleProduct.qty}}
+                                                            <p class="mb-1"><strong>Quantity:</strong> {{this.wholesaleProduct.qty}}</p>
+                                                        {{/if}}
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="text-end">
+                                                            <h4 class="text-success mb-2">${{this.wholesaleProduct.wholesaleCost}}</h4>
+                                                            {{#if this.wholesaleProduct.hyperlink}}
+                                                                <a href="{{this.wholesaleProduct.hyperlink}}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                    <i class="fas fa-external-link-alt"></i> View at Store
+                                                                </a>
+                                                            {{/if}}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {{!-- Profitability Analysis --}}
+                                        {{#with (lookup ../analysisResults @index)}}
+                                            {{#if this.status}}
+                                                <div class="mt-3 p-3 bg-light rounded">
+                                                    <h6 class="text-muted mb-2">Profitability Analysis</h6>
+                                                    {{#if this.profitability}}
+                                                        <div class="profitability-breakdown">
+                                                            <div class="row">
+                                                                <div class="col-md-3">
+                                                                    <strong>Best Amazon Price:</strong><br>
+                                                                    <span class="text-primary">${{this.profitability.price}}</span>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <strong>Potential Profit:</strong><br>
+                                                                    <span class="text-{{#if (gt this.profitability.profit 0)}}success{{else}}danger{{/if}}">
+                                                                        ${{this.profitability.profit}}
+                                                                    </span>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <strong>Profit Margin:</strong><br>
+                                                                    <span class="text-{{#if (gt this.profitability.margin 20)}}success{{else if (gt this.profitability.margin 0)}}warning{{else}}danger{{/if}}">
+                                                                        {{this.profitability.margin}}%
+                                                                    </span>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <strong>Status:</strong><br>
+                                                                    <span class="badge bg-{{#if (eq this.profitability.status 'high_profit')}}success{{else if (eq this.profitability.status 'good_profit')}}warning{{else if (eq this.profitability.status 'low_profit')}}info{{else}}danger{{/if}}">
+                                                                        {{this.profitability.status}}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {{!-- Cost Breakdown --}}
+                                                            <div class="cost-breakdown mt-2">
+                                                                <strong>Cost Breakdown:</strong><br>
+                                                                • Wholesale Cost: ${{../this.wholesaleProduct.wholesaleCost}}<br>
+                                                                • Shipping: $6.00<br>
+                                                                • Amazon Fee (15%): ${{this.profitability.amazonFee}}<br>
+                                                                • Minimum Profit: $2.00<br>
+                                                                • <strong>Total Costs: ${{this.profitability.totalCosts}}</strong><br>
+                                                                • <strong>Minimum Required Price: ${{this.profitability.minimumRequiredPrice}}</strong>
+                                                            </div>
+                                                        </div>
+                                                        {{#if this.recommendations}}
+                                                            <div class="mt-2">
+                                                                <strong>Recommendations:</strong>
+                                                                <ul class="mb-0">
+                                                                    {{#each this.recommendations}}
+                                                                        <li>{{this}}</li>
+                                                                    {{/each}}
+                                                                </ul>
+                                                            </div>
+                                                        {{/if}}
+                                                    {{else}}
+                                                        <p class="text-muted mb-0">{{this.message}}</p>
+                                                    {{/if}}
+                                                </div>
+                                            {{/if}}
+                                        {{/with}}
+
+                                        {{!-- Amazon Results for this specific product --}}
+                                        {{#if this.amazonResults}}
+                                            <div class="mt-3">
+                                                <h6 class="text-muted mb-2">Amazon Search Results for "{{this.wholesaleProduct.title}}"</h6>
+                                                <p class="text-info mb-2"><small><strong>Search Query:</strong> "{{this.searchQuery}}"</small></p>
+                                                <p class="text-success mb-2"><small><strong>✅ Showing {{this.amazonResults.length}} profitable results (filtered from total results)</strong></small></p>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Image</th>
+                                                                <th>Title</th>
+                                                                <th>Brand</th>
+                                                                <th>Price</th>
+                                                                <th>Profit</th>
+                                                                <th>Rating</th>
+                                                                <th>Reviews</th>
+                                                                <th>Seller</th>
+                                                                <th>Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {{#each this.amazonResults}}
+                                                                <tr>
+                                                                    <td>
+                                                                        {{#if this.thumbnail}}
+                                                                            <img src="{{this.thumbnail}}" 
+                                                                                 alt="Product" 
+                                                                                 class="amazon-thumbnail zoom"
+                                                                                 title="Hover to enlarge">
+                                                                        {{else}}
+                                                                            <span class="text-muted">-</span>
+                                                                        {{/if}}
+                                                                    </td>
+                                                                    <td><small>{{this.title}}</small></td>
+                                                                    <td><small>{{this.brand}}</small></td>
+                                                                    <td><strong>${{this.price}}</strong></td>
+                                                                    <td>
+                                                                        {{#if this.analysis}}
+                                                                            <span class="text-{{#if (gt this.analysis.profit 0)}}success{{else}}danger{{/if}}">
+                                                                                ${{this.analysis.profit}}
+                                                                            </span>
+                                                                        {{else}}
+                                                                            <span class="text-muted">-</span>
+                                                                        {{/if}}
+                                                                    </td>
+                                                                    <td>
+                                                                        {{#if this.rating}}
+                                                                            <span class="text-warning">★</span> {{this.rating}}
+                                                                        {{else}}
+                                                                            <span class="text-muted">-</span>
+                                                                        {{/if}}
+                                                                    </td>
+                                                                    <td>
+                                                                        {{#if this.reviews}}
+                                                                            <small>{{this.reviews}}</small>
+                                                                        {{else}}
+                                                                            <span class="text-muted">-</span>
+                                                                        {{/if}}
+                                                                    </td>
+                                                                    <td><small>{{this.seller}}</small></td>
+                                                                    <td>
+                                                                        {{#if this.link}}
+                                                                            <a href="{{this.link}}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+                                                                        {{/if}}
+                                                                    </td>
+                                                                </tr>
+                                                            {{/each}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        {{else}}
+                                            <div class="mt-3">
+                                                <div class="alert alert-warning">
+                                                    <strong>No Profitable Amazon Results Found</strong><br>
+                                                    <small>All Amazon search results were below the minimum profitable price requirements.</small>
+                                                </div>
+                                            </div>
+                                        {{/if}}
+                                    </div>
+                                </div>
+                            </div>
+                        {{/each}}
+                    </div>
+
+                    {{!-- Pagination --}}
+                    {{#if (gt wholesaleTotalPages 1)}}
+                        <nav aria-label="Wholesale products pagination">
+                            <ul class="pagination justify-content-center">
+                                {{#if (gt wholesaleCurrentPage 1)}}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}">Previous</a>
+                                    </li>
+                                {{/if}}
+                                
+                                {{#each (range wholesaleStartPage wholesaleEndPage)}}
+                                    <li class="page-item {{#if (eq this ../wholesaleCurrentPage)}}active{{/if}}">
+                                        <a class="page-link" href="{{../wholesalePageUrl}}{{this}}">{{this}}</a>
+                                    </li>
+                                {{/each}}
+                                
+                                {{#if (lt wholesaleCurrentPage wholesaleTotalPages)}}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{wholesalePageUrl}}{{inc wholesaleCurrentPage}}">Next</a>
+                                    </li>
+                                {{/if}}
+                            </ul>
+                        </nav>
+                    {{/if}}
+                {{else}}
+                    <div class="alert alert-warning">
+                        No wholesale products found for this batch.
+                    </div>
+                {{/if}}
             </div>
-        {{else}}
-            {{!-- This else is for the outer #if amazonResults --}}
-            {{!-- Only show this message if there were wholesale products but no Amazon results --}}
-            {{#if wholesaleProducts}} {{!-- Check if we had wholesale products to show --}}
-                 <p class="text-center no-results">No Amazon search results were found for this batch.</p>
-            {{/if}}
-        {{/if}}
+        </div>
+    </div>
 
-    {{else}}
-        {{!-- This handles if wholesaleProducts was empty or null --}}
-        <p class="text-center text-muted">No wholesale products were found for this batch ID.</p>
-    {{/if}}
-
-    <p><a href="/wholesale-list">Back to Wholesale Batches List</a></p>
-    <p><a href="/wholesale">Upload New Wholesale CSV</a></p>
-    <p><a href="/">Go to Home</a></p>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

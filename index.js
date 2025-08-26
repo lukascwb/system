@@ -23,6 +23,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const wholesaleModule = require('./models/wholesale'); // Import your new module
 const WholesaleProduct = wholesaleModule.WholesaleProduct; // Get the model
 const AmazonWholesaleResult = wholesaleModule.AmazonWholesaleResult; // Get the model
+const processWholesaleProductsForAmazon = wholesaleModule.processWholesaleProductsForAmazon; // Get the function
 
 // ... rest of your index.js ...
 
@@ -48,19 +49,18 @@ app.engine('handlebars', handlebars.engine({
     helpers: {
         ...handlebarsHelpers, // Spread the helpers from the package
         // ... any other custom helpers you have ...
-        range: function(start, end, options) {
-            let result = '';
+        range: function(start, end) {
+            const result = [];
             for (let i = start; i <= end; i++) {
-                // You might need to explicitly call the helper with the current page number
-                // to get the correct class, or pass the page number into the range loop.
-                // For now, assume `{{@index}}` from a simple loop will work.
-                // If not, you might need a more complex helper that takes current page as an argument.
-                result += options.fn(i); // Or options.fn({ pageNum: i }) if your loop expects an object
+                result.push(i);
             }
             return result;
         },
         inc: function (value) {
             return parseInt(value, 10) + 1; // Ensure value is a number
+        },
+        add: function (a, b, options) {
+            return parseInt(a, 10) + parseInt(b, 10);
         },
         lookup: function (obj, key) {
             return obj[key];
@@ -83,12 +83,24 @@ app.engine('handlebars', handlebars.engine({
             }
             return ''; // Aprovado
         },
-    if_eq: function (a, b, options) {
-        if (a == b) {
-            return options.fn(this);
-        }
-        return options.inverse(this);
-    },
+            if_eq: function (a, b, options) {
+            if (a == b) {
+                return options.fn(this);
+            }
+            return options.inverse(this);
+        },
+        if_gt: function (a, b, options) {
+            if (a > b) {
+                return options.fn(this);
+            }
+            return options.inverse(this);
+        },
+        if_lt: function (a, b, options) {
+            if (a < b) {
+                return options.fn(this);
+            }
+            return options.inverse(this);
+        },
     }
 }))
 
@@ -906,20 +918,30 @@ app.listen(8081, authenticate, function () {
 
 // New route for wholesale CSV upload
 app.get("/wholesale", authenticate, function (req, res) {
-    res.render('wholesale'); // Assuming you'll create wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwa 'wholesale.handlebars' view
+    res.render('wholesale', { page: 'wholesale_upload' });
 });
 
-// POST route to handle the wholesale CSV upload
-// In index.js, replace your existing app.post('/upload-wholesale', ...) block with this:
-
+// POST route to handle the wholesale CSV upload with flexible column mapping
 app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
 
     const csvFilePath = req.file.path;
-    // Generate a unique ID for this upload batch. Using original filename without extension.
     const wholesale_id = path.basename(req.file.originalname, path.extname(req.file.originalname));
+
+    // Get column mapping from form data
+    const columnMapping = {
+        title: req.body.titleColumn || null,
+        cost: req.body.costColumn || null,
+        costDollar: req.body.costDollarColumn || null,
+        costCents: req.body.costCentsColumn || null,
+        thumbnail: req.body.thumbnailColumn || null,
+        hyperlink: req.body.hyperlinkColumn || null,
+        brand: req.body.brandColumn || null,
+        size: req.body.sizeColumn || null,
+        item: req.body.itemColumn || null
+    };
 
     let processedLines = 0;
     let failedLines = 0;
@@ -928,70 +950,39 @@ app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async
     const fileStream = fs.createReadStream(csvFilePath);
 
     const parser = parse({
-        // --- ULTIMATE ROBUST APPROACH: Manual Indexing ---
-        // Remove all 'columns' related options.
-        // We will manually define the column order here.
-        from_line: 2, // Start processing data from the second line (skipping header)
-        // If `columns` is not set, `csv-parse` yields rows as arrays.
-        // We MUST know the order of columns in the CSV.
-        // Based on your latest CSV:
-        // 0: Name, 1: Upc, 2: Item, 3: Brand, 4: Size, 5: Cost, 6: Pack, 7: Qty
-        // --- END OF MODIFICATION ---
+        columns: true, // Use headers to get column names
         skip_empty_lines: true,
     });
-
 
     fileStream.pipe(parser)
         .on('data', async (record) => {
             try {
-                // --- MANUAL INDEXING ACCESS ---
-                // Access data using indices based on the CSV column order.
-                // CSV Order: Name, Upc, Item, Brand, Size, Cost, Pack, Qty
-                const description = record[0]; // From CSV 'Name' column
-                const upc = record[1];         // From CSV 'Upc' column
-                const item = record[2];        // From CSV 'Item' column
-                const brand = record[3];       // From CSV 'Brand' column
-                const size = record[4];        // From CSV 'Size' column
-                const wholesaleCostRaw = record[5]; // From CSV 'Cost' column (e.g., "3.9")
-                const packSizeRaw = record[6];    // From CSV 'Pack' column (e.g., "cs")
-                const qtyRaw = record[7];      // From CSV 'Qty' column (e.g., "80")
-
-                // Basic validation: Check if the core mapped fields are populated
-                if (!description || !item || !brand || !wholesaleCostRaw) {
+                // Extract data using flexible column mapping
+                const extractedData = extractDataFromRecord(record, columnMapping);
+                
+                if (!extractedData.title || !extractedData.cost) {
                     failedLines++;
                     errorMessages.push({
                         line: processedLines + 1,
-                        error: "Missing essential fields (Description, ITEM, Brand, or Wholesale Cost)."
+                        error: "Missing required fields (Title or Cost)"
                     });
-                    return; // Skip this record if core mapping failed
+                    return;
                 }
 
                 // Prepare data for the database model
                 const wholesaleData = {
                     wholesale_id: wholesale_id,
-                    description: description,
-                    upc: upc,
-                    itemBrand: item,     // Assign value from record[2] (ITEM)
-                    brand: brand,        // Assign value from record[3] (Brand)
-                    size: size,
-                    
-                    // Parse numeric fields. CSV 'Cost' is already like "3.9".
-                    wholesaleCost: parseFloat(wholesaleCostRaw),
-                    packSize: packSizeRaw, // Keep as string "cs"
-                    qty: parseInt(qtyRaw, 10),
+                    title: extractedData.title,
+                    upc: extractedData.upc || null,
+                    item: extractedData.item || null,
+                    brand: extractedData.brand || null,
+                    size: extractedData.size || null,
+                    wholesaleCost: extractedData.cost,
+                    packSize: extractedData.packSize || null,
+                    qty: extractedData.qty || null,
+                    thumbnail: extractedData.thumbnail || null,
+                    hyperlink: extractedData.hyperlink || null
                 };
-
-                // Validate numeric conversions for fields that MUST be numbers
-                // Note: packSizeRaw is "cs", so parseInt will be NaN. If your DB requires an INT for packSize,
-                // you'll need specific handling for "cs" (e.g., set to null or a default).
-                if (isNaN(wholesaleData.wholesaleCost) || isNaN(wholesaleData.qty)) {
-                    failedLines++;
-                    errorMessages.push({
-                        line: processedLines + 1,
-                        error: "Invalid numeric value for Wholesale Cost or Qty."
-                    });
-                    return; // Skip this record
-                }
 
                 // Save the wholesale product data to the database
                 await WholesaleProduct.create(wholesaleData);
@@ -1020,29 +1011,9 @@ app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async
                     redirect: '/list'
                 });
             } else {
-                console.log(`Wholesale CSV '${req.file.originalname}' uploaded and saved. Initiating Amazon search for ID: ${wholesale_id}`);
-                try {
-                    const uploadedWholesaleProducts = await WholesaleProduct.findAll({
-                        where: { wholesale_id: wholesale_id }
-                    });
-
-                    if (uploadedWholesaleProducts.length === 0) {
-                        console.log(`No wholesale products found in DB for ID ${wholesale_id} after upload.`);
-                        return res.redirect('/list');
-                    }
-
-                    const amazonResults = await processWholesaleProductsForAmazon(uploadedWholesaleProducts);
-                    console.log(`Amazon search processed for ${amazonResults.length} products.`);
-                    res.redirect('/list');
-
-                } catch (processError) {
-                    console.error(`Error during wholesale data processing and Amazon search for ${wholesale_id}:`, processError);
-                    res.status(500).json({
-                        message: "Error processing uploaded wholesale data for Amazon search.",
-                        details: processError.message,
-                        redirect: '/list'
-                    });
-                }
+                console.log(`Wholesale CSV '${req.file.originalname}' uploaded and saved successfully. ID: ${wholesale_id}`);
+                // Redirect to wholesale list instead of performing Amazon search
+                res.redirect('/wholesale-list');
             }
         })
         .on('error', (err) => {
@@ -1058,7 +1029,116 @@ app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async
         });
 });
 
-// --- END OF CORRECTED app.post('/upload-wholesale', ...) ROUTE ---
+// Helper function to extract data from CSV record with flexible column mapping
+function extractDataFromRecord(record, columnMapping) {
+    const data = {};
+    
+    // Helper function to find column value
+    const findColumn = (possibleNames) => {
+        if (!possibleNames) return null;
+        const names = Array.isArray(possibleNames) ? possibleNames : [possibleNames];
+        for (const name of names) {
+            if (name && record[name] !== undefined) {
+                return record[name];
+            }
+        }
+        return null;
+    };
+
+    // Extract title
+    data.title = findColumn([columnMapping.title, 'Title', 'title', 'Description', 'description', 'Name', 'name', 'Product', 'product']);
+
+    // Extract cost with multiple strategies
+    data.cost = extractCost(record, columnMapping);
+
+    // Extract other fields
+    data.brand = findColumn([columnMapping.brand, 'Brand', 'brand']);
+    data.size = findColumn([columnMapping.size, 'Size', 'size']);
+    data.item = findColumn([columnMapping.item, 'Item', 'item', 'ITEM', 'SKU', 'sku']);
+    data.thumbnail = findColumn([columnMapping.thumbnail, 'Thumbnail', 'thumbnail', 'Image', 'image']);
+    data.hyperlink = findColumn([columnMapping.hyperlink, 'Hyperlink', 'hyperlink', 'Link', 'link', 'URL', 'url']);
+    data.qty = findColumn(['Qty', 'qty', 'Quantity', 'quantity']);
+    data.packSize = findColumn(['Pack Size', 'packSize', 'PackSize', 'Pack']);
+    data.upc = findColumn(['UPC', 'upc']);
+
+    return data;
+}
+
+// Helper function to extract cost from various formats
+function extractCost(record, columnMapping) {
+    // Strategy 1: Try to find cost from specified cost column
+    if (columnMapping.cost) {
+        const costValue = record[columnMapping.cost];
+        if (costValue) {
+            const extracted = extractPriceFromString(costValue);
+            if (extracted !== null) return extracted;
+        }
+    }
+
+    // Strategy 2: Try common cost column names
+    const costColumns = ['Cost', 'cost', 'Price', 'price', 'current price'];
+    for (const colName of costColumns) {
+        if (record[colName]) {
+            const extracted = extractPriceFromString(record[colName]);
+            if (extracted !== null) return extracted;
+        }
+    }
+
+    // Strategy 3: Try separate dollar and cents columns
+    if (columnMapping.costDollar && columnMapping.costCents) {
+        const dollar = record[columnMapping.costDollar];
+        const cents = record[columnMapping.costCents];
+        if (dollar !== undefined && cents !== undefined) {
+            const combined = parseFloat(dollar) + (parseFloat(cents) / 100);
+            if (!isNaN(combined)) return combined;
+        }
+    }
+
+    // Strategy 4: Try common separate dollar/cents patterns
+    const dollarColumns = ['cost dollar', 'Cost Dollar', 'dollar'];
+    const centsColumns = ['cost cents', 'Cost Cents', 'cents'];
+    
+    for (const dollarCol of dollarColumns) {
+        for (const centsCol of centsColumns) {
+            if (record[dollarCol] !== undefined && record[centsCol] !== undefined) {
+                const dollar = parseFloat(record[dollarCol]);
+                const cents = parseFloat(record[centsCol]);
+                if (!isNaN(dollar) && !isNaN(cents)) {
+                    return dollar + (cents / 100);
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+// Helper function to extract price from string with various formats
+function extractPriceFromString(priceString) {
+    if (!priceString) return null;
+    
+    const str = priceString.toString().trim();
+    
+    // Pattern 1: "current price $4.98"
+    const currentPriceMatch = str.match(/current price \$?([\d,]+\.?\d*)/i);
+    if (currentPriceMatch) {
+        return parseFloat(currentPriceMatch[1].replace(',', ''));
+    }
+    
+    // Pattern 2: "$4.98" or "4.98"
+    const priceMatch = str.match(/[\$€£¥]?([\d,]+\.?\d*)/);
+    if (priceMatch) {
+        return parseFloat(priceMatch[1].replace(',', ''));
+    }
+    
+    // Pattern 3: Just numbers
+    const numberMatch = str.match(/([\d,]+\.?\d*)/);
+    if (numberMatch) {
+        return parseFloat(numberMatch[1].replace(',', ''));
+    }
+    
+    return null;
+}
 
 // Route to process the uploaded wholesale data and search Amazon
 app.get('/process-wholesale/:wholesale_id', authenticate, async (req, res) => {
@@ -1174,7 +1254,7 @@ app.get('/wholesale-list', authenticate, async (req, res) => {
 app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res) => {
     const wholesale_id = req.params.wholesale_id;
     const page = parseInt(req.query.page, 10) || 1; // For wholesale product pagination
-    const WHOLESALE_ITEMS_PER_PAGE = 2; // How many wholesale items to show on this detail page
+    const ITEMS_PER_PAGE = 2; // How many wholesale items to show on this detail page
 
     console.log(`--- ENTERING DETAIL ROUTE for wholesale_id: "${wholesale_id}" ---`);
 
@@ -1197,81 +1277,39 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         }
         console.log(`Found ${wholesaleProducts.length} wholesale products for batch "${wholesale_id}".`);
 
-        // Fetch ALL STORED Amazon results that match ANY of the wholesale products in this batch.
-        // This requires getting the IDs of the wholesale products first, or filtering by wholesale_id.
-        // Since AmazonWholesaleResult is linked by wholesale_id, we'll fetch all for the batch.
-        // If you need results specific to EACH wholesale product, the DB schema and query would change.
+        // Search for Amazon results for EACH wholesale product individually
+        const wholesaleProductsWithResults = [];
         
-        // For now, let's fetch stored results for the batch as a whole.
-        // If you want to display results *grouped by* wholesale product,
-        // you'd need to adjust the data structure passed to the view.
-        const storedAmazonResults = await AmazonWholesaleResult.findAll({
-            where: { wholesale_id: wholesale_id },
-            order: [['createdAt', 'DESC']],
-            // Add pagination for stored results if needed, although usually you'd paginate the wholesale products first.
-        });
-        console.log(`Found ${storedAmazonResults.length} stored Amazon results for batch "${wholesale_id}".`);
-        
-        let finalAmazonResults = []; // Initialize to an empty array
-
-        if (storedAmazonResults && storedAmazonResults.length > 0) {
-            finalAmazonResults = storedAmazonResults;
-            console.log(`Using ${finalAmazonResults.length} stored Amazon results.`);
-        } else {
-            console.log(`No stored results found. Attempting dynamic search for the FIRST wholesale product.`);
+        for (const wholesaleProduct of wholesaleProducts) {
+            // Construct the search query
+            const searchQuery = `${wholesaleProduct.brand ? wholesaleProduct.brand + ' ' : ''}${wholesaleProduct.title}`;
+            console.log(`Searching Amazon for product: "${wholesaleProduct.title}"`);
+            console.log(`Search query: "${searchQuery}"`);
             
-            // Ensure we have a product to search for
-            const firstProductForSearch = wholesaleProducts[0]; // Search for the first wholesale product in the current view
-
-            if (firstProductForSearch) {
-                const searchItem = firstProductForSearch.description || firstWholesaleProduct.item; // Use description, fallback to item
-                const searchBrand =  brand;
-
-                if (searchItem || searchBrand) {
-                    console.log(`Performing dynamic search for: "${searchItem}" / "${searchBrand}"`);
-                    const searchResult = await wholesaleModule.searchAmazonProduct(
-                        searchBrand, 
-                        searchItem
-                    );
-
-                    if (searchResult && searchResult.length > 0) {
-                        console.log(`Dynamic search found ${searchResult.length} results.`);
-                        for (const result of searchResult) {
-                            try {
-                                await AmazonWholesaleResult.create({
-                                    wholesale_id: wholesale_id,
-                                    asin: result.asin,
-                                    title: result.title,
-                                    link: result.link,
-                                    rating: result.rating,
-                                    reviews: result.reviews,
-                                    brand: result.brand,
-                                    price: result.price,
-                                    seller: result.seller,
-                                    thumbnail: result.thumbnail,
-                                    recent_sales: result.recent_sales,
-                                });
-                                finalAmazonResults.push(result);
-                                console.log(`Stored dynamic Amazon result for batch "${wholesale_id}", item: "${searchItem}"`);
-                            } catch (dbError) {
-                                console.error(`Database error saving dynamic Amazon result for wholesale_id "${wholesale_id}", item: "${searchItem}":`, dbError);
-                                finalAmazonResults.push({ title: "DB Save Error.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null });
-                            }
-                        }
-                    } else {
-                        console.log(`Dynamic search found no Amazon results for "${searchItem}".`);
-                        finalAmazonResults = [{ title: "Amazon search found no results.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
-                    }
-                } else {
-                    console.log(`Skipping dynamic search for batch "${wholesale_id}" as brand or description is missing for the first product.`);
-                    finalAmazonResults = [{ title: "Cannot search: Missing Brand or Description for first item.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
-                }
+            // Search for this specific product
+            const searchResult = await wholesaleModule.searchAmazonProduct(
+                wholesaleProduct.brand, 
+                wholesaleProduct.title
+            );
+            
+            let amazonResults = [];
+            if (searchResult && searchResult.length > 0) {
+                console.log(`Found ${searchResult.length} Amazon results for "${wholesaleProduct.title}"`);
+                amazonResults = searchResult;
             } else {
-                console.log(`No first wholesale product available to perform dynamic search.`);
-                 finalAmazonResults = [{ title: "No wholesale products to search.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
+                console.log(`No Amazon results found for "${wholesaleProduct.title}"`);
+                amazonResults = [{ title: "No Amazon results found for this product.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
             }
+            
+            // Add the wholesale product with its Amazon results and search query
+            wholesaleProductsWithResults.push({
+                wholesaleProduct: wholesaleProduct,
+                amazonResults: amazonResults,
+                searchQuery: searchQuery
+            });
         }
-        // --- END DYNAMIC SEARCH LOGIC ---
+        
+        console.log(`Processed ${wholesaleProductsWithResults.length} wholesale products with individual Amazon searches.`);
 
         // Calculate pagination for the wholesale products displayed on THIS page
         const wholesaleProductCount = await WholesaleProduct.count({ where: { wholesale_id: wholesale_id } });
@@ -1279,10 +1317,25 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         const wholesaleStartPage = Math.max(1, page - 2);
         const wholesaleEndPage = Math.min(totalWholesalePages, page + 2);
 
+        // Perform profitability analysis for each wholesale product with its own Amazon results
+        const analysisResults = {};
+        for (let i = 0; i < wholesaleProductsWithResults.length; i++) {
+            const productData = wholesaleProductsWithResults[i];
+            const analysis = wholesaleModule.analyzeProfitability(productData.wholesaleProduct, productData.amazonResults);
+            analysisResults[i] = analysis;
+            
+            // Replace amazonResults with only profitable results
+            if (analysis.profitableResults && analysis.profitableResults.length > 0) {
+                wholesaleProductsWithResults[i].amazonResults = analysis.profitableResults;
+            } else {
+                wholesaleProductsWithResults[i].amazonResults = [];
+            }
+        }
+
         res.render('wholesale-products-detail', {
             wholesale_id: wholesale_id,
-            wholesaleProducts: wholesaleProducts, // Pass the array of fetched wholesale products
-            amazonResults: finalAmazonResults,     // Pass the results (either stored or dynamically fetched)
+            wholesaleProductsWithResults: wholesaleProductsWithResults, // Pass the array with products and their individual Amazon results
+            analysisResults: analysisResults,      // Pass the profitability analysis results
             
             // Wholesale product pagination data
             wholesaleCurrentPage: page,
