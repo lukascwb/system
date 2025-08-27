@@ -299,11 +299,17 @@ async function searchAmazonProduct(brand, title, retryCount = 0) {
                     fallbackBrand: brand
                 });
                 
+                // Construct Amazon link from ASIN if link is missing
+                let amazonLink = result.link;
+                if (!amazonLink && result.asin) {
+                    amazonLink = `https://www.amazon.com/dp/${result.asin}`;
+                }
+                
                 return {
                     position: result.position || (index + 1), // Use position from API or fallback to index + 1
                     asin: result.asin || null,
                     title: result.title || null,
-                    link: result.link || null,
+                    link: amazonLink || null,
                     rating: result.rating || null,
                     reviews: result.reviews || null,
                     brand: extractedBrand,
@@ -322,6 +328,7 @@ async function searchAmazonProduct(brand, title, retryCount = 0) {
             console.log('=== FORMATTED RESULTS WITH POSITIONS ===');
             formattedResults.forEach(result => {
                 console.log(`Position ${result.position} (ASIN: ${result.asin || 'N/A'}): ${result.title}`);
+                console.log(`  Link: ${result.link || 'N/A'}`);
             });
             console.log('=== END FORMATTED RESULTS ===');
             return formattedResults;
@@ -626,6 +633,18 @@ async function analyzeProfitability(wholesaleProduct, amazonResults) {
             amazonPrice = extractPrice(result.price);
             console.log('Using extracted price from result.price:', amazonPrice);
         }
+
+        // Check if there's delivery information that needs to be separated from the price
+        let deliveryInfo = null;
+        if (result.fulfillment && result.fulfillment.standard_delivery) {
+            deliveryInfo = {
+                text: result.fulfillment.standard_delivery.text,
+                type: result.fulfillment.standard_delivery.type,
+                date: result.fulfillment.standard_delivery.date,
+                cost: extractDeliveryCost(result.fulfillment.standard_delivery.text)
+            };
+            console.log('Found delivery info:', deliveryInfo);
+        }
         
         console.log('Final amazonPrice:', amazonPrice);
         console.log('=== END PRICE EXTRACTION ===\n');
@@ -673,6 +692,10 @@ async function analyzeProfitability(wholesaleProduct, amazonResults) {
 
         // Calculate costs and minimum required price with adjusted wholesale cost
         const amazonFee = amazonPrice * 0.15; // 15% Amazon fee
+        
+        // Add delivery cost if present
+        const deliveryCost = deliveryInfo && deliveryInfo.cost ? deliveryInfo.cost : 0;
+        
         const totalCosts = adjustedWholesaleCost + shipping + amazonFee + minimumProfit;
         const actualProfit = amazonPrice - totalCosts;
 
@@ -687,6 +710,7 @@ async function analyzeProfitability(wholesaleProduct, amazonResults) {
             originalWholesaleCost: wholesaleCost,
             adjustedWholesaleCost: adjustedWholesaleCost,
             costAdjustmentReason: costAdjustmentReason,
+            deliveryInfo: deliveryInfo, // Include delivery information
             geminiMatch: geminiAnalysis.isMatch,
             geminiConfidenceScore: geminiAnalysis.confidenceScore,
             geminiReason: geminiAnalysis.reason,
@@ -837,6 +861,23 @@ function extractPrice(priceInput) {
     
     const price = parseFloat(cleanPrice);
     return isNaN(price) ? null : price;
+}
+
+/**
+ * Extracts delivery cost from delivery text
+ * @param {string} deliveryText - Delivery text like "$14.74 delivery Sep 3 - 8"
+ * @returns {number|null} - Extracted delivery cost or null if invalid
+ */
+function extractDeliveryCost(deliveryText) {
+    if (!deliveryText) return null;
+    
+    // Look for price pattern in delivery text
+    const priceMatch = deliveryText.match(/\$(\d+\.?\d*)/);
+    if (priceMatch) {
+        return parseFloat(priceMatch[1]);
+    }
+    
+    return null;
 }
 
 /**

@@ -1357,12 +1357,14 @@ app.get('/wholesale-list', authenticate, async (req, res) => {
 app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res) => {
     const wholesale_id = req.params.wholesale_id;
     const page = parseInt(req.query.page, 10) || 1; // For wholesale product pagination
-    const ITEMS_PER_PAGE = 2; // How many wholesale items to show on this detail page
+    const ITEMS_PER_PAGE = 10; // How many wholesale items to show on this detail page
 
     console.log(`--- ENTERING DETAIL ROUTE for wholesale_id: "${wholesale_id}" ---`);
     console.log(`URL encoded wholesale_id: "${encodeURIComponent(wholesale_id)}"`);
     console.log(`Current page: ${page}`);
     console.log(`Request URL: ${req.url}`);
+
+    
 
     try {
         const startTime = Date.now(); // Start timing
@@ -1445,13 +1447,32 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
             wholesaleProductsWithResults[index] = productData;
         });
 
+        // Sort wholesale products by number of Amazon results (most to least)
+        wholesaleProductsWithResults.sort((a, b) => {
+            const aCount = a.amazonResults ? a.amazonResults.length : 0;
+            const bCount = b.amazonResults ? b.amazonResults.length : 0;
+            return bCount - aCount; // Descending order (most results first)
+        });
+
+        // Update analysisResults to match the new order
+        const sortedAnalysisResults = {};
+        wholesaleProductsWithResults.forEach((productData, newIndex) => {
+            // Find the original index for this product
+            const originalIndex = analysisResultsArray.findIndex(item => 
+                item.productData.wholesaleProduct.id === productData.wholesaleProduct.id
+            );
+            if (originalIndex !== -1) {
+                sortedAnalysisResults[newIndex] = analysisResultsArray[originalIndex].analysis;
+            }
+        });
+
         const endTime = Date.now(); // End timing
         const totalLoadTime = ((endTime - startTime) / 1000).toFixed(2); // Calculate total load time in seconds
 
         res.render('wholesale-products-detail', {
             wholesale_id: wholesale_id,
             wholesaleProductsWithResults: wholesaleProductsWithResults, // Pass the array with products and their individual Amazon results
-            analysisResults: analysisResults,      // Pass the profitability analysis results
+            analysisResults: sortedAnalysisResults,      // Pass the sorted profitability analysis results
             totalLoadTime: performanceConfig.performanceMonitoring.enabled ? totalLoadTime : null, // Pass totalLoadTime conditionally
             
             // Wholesale product pagination data

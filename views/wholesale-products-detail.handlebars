@@ -52,6 +52,28 @@
             transform: translateX(-50%) scale(6);
             transform-origin: center center;
         }
+
+        /* Fix for Amazon items - ensure each item's zoom is independent */
+        .amazon-item .zoom:hover {
+            position: absolute;
+            z-index: 1001; /* Higher than other zoomed images */
+        }
+
+        /* Ensure Amazon thumbnails have proper positioning context */
+        .amazon-item {
+            position: relative;
+        }
+
+        /* Specific positioning for Amazon thumbnails */
+        .amazon-item .col-3 .zoom:hover {
+            left: 0 !important;
+            transform-origin: left center;
+        }
+
+        /* Ensure wholesale items don't interfere with Amazon items */
+        .product-header .zoom:hover {
+            z-index: 1002; /* Higher than Amazon items */
+        }
         .wholesale-thumbnail {
             max-width: 120px;
             max-height: 120px;
@@ -172,10 +194,60 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
-                 .wholesale-compact-item .wholesale-thumbnail {
-             max-width: 80px;
-             max-height: 80px;
-         }
+                         .wholesale-compact-item .wholesale-thumbnail {
+            max-width: 80px;
+            max-height: 80px;
+        }
+
+        /* Grid layout for wholesale products with Amazon results */
+        .wholesale-products-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Products with 3+ Amazon results get full width (alone on line) */
+        .product-card {
+            grid-column: span 1;
+        }
+
+        /* Products with 0-2 Amazon results can share a line */
+        .product-card.few-amazon-results {
+            grid-column: span 1;
+        }
+
+        /* Responsive grid adjustments */
+        @media (min-width: 768px) {
+            .wholesale-products-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            /* Products with 3+ Amazon results get full width (span 2 columns) */
+            .product-card {
+                grid-column: span 2;
+            }
+            
+            /* Products with 0-2 Amazon results share a line (span 1 column) */
+            .product-card.few-amazon-results {
+                grid-column: span 1;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .wholesale-products-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Special layout for products with very few Amazon results */
+        .product-card.few-amazon-results .product-body {
+            padding: 15px;
+        }
+
+        .product-card.few-amazon-results .amazon-grid {
+            margin-top: 10px;
+        }
          
          /* Tooltip styling */
          .tooltip {
@@ -259,11 +331,12 @@
 
 
     <!-- Wholesale Products List -->
-    {{#if wholesaleProductsWithResults}}
+                    {{#if wholesaleProductsWithResults}}
                     {{!-- First: Show products with Amazon results --}}
-                    {{#each wholesaleProductsWithResults}}
-                        {{#if this.amazonResults.length}}
-                            <div class="product-card">
+                    <div class="wholesale-products-grid">
+                        {{#each wholesaleProductsWithResults}}
+                            {{#if this.amazonResults.length}}
+                                <div class="product-card {{#if (lte this.amazonResults.length 2)}}few-amazon-results{{/if}}">
                                 {{!-- Wholesale Product Header --}}
                                 <div class="product-header">
                                     <div class="row align-items-center">
@@ -376,28 +449,37 @@
                                                                 <span class="price-highlight"
                                                                       data-bs-toggle="tooltip" 
                                                                       data-bs-html="true"
-                                                                      title="<strong>Amazon Price Details:</strong><br>
-                                                                      <div style='text-align: left;'>
-                                                                      {{#if this.analysis}}
-                                                                      <strong>Current Price:</strong> ${{formatNumber this.analysis.price 2}}<br>
-                                                                      <strong>Seller:</strong> {{this.seller}}<br>
-                                                                      <strong>Rating:</strong> {{this.rating}} ⭐<br>
-                                                                      <strong>Reviews:</strong> {{this.reviews}}<br>
-                                                                      {{#if this.recent_sales}}
-                                                                      <strong>Recent Sales:</strong> {{this.recent_sales}}
-                                                                      {{/if}}
-                                                                      {{else}}
+                                                                                                                                             title="<strong>Amazon Price Details:</strong><br>
+                                                                       <div style='text-align: left;'>
+                                                                       {{#if this.analysis}}
+                                                                       <strong>Current Price:</strong> ${{formatNumber this.analysis.price 2}}<br>
+                                                                       {{#if this.analysis.deliveryInfo}}
+                                                                       <strong>Delivery:</strong> {{this.analysis.deliveryInfo.text}}<br>
+                                                                       {{/if}}
+                                                                       <strong>Seller:</strong> {{this.seller}}<br>
+                                                                       <strong>Rating:</strong> {{this.rating}} ⭐<br>
+                                                                       <strong>Reviews:</strong> {{this.reviews}}<br>
+                                                                       {{#if this.recent_sales}}
+                                                                       <strong>Recent Sales:</strong> {{this.recent_sales}}
+                                                                       {{/if}}
+                                                                       {{else}}
                                                                       <strong>Price Source:</strong> {{#if (lookup this 'extracted_price')}}Extracted{{else}}Raw{{/if}}<br>
                                                                       <strong>Seller:</strong> {{this.seller}}
                                                                       {{/if}}
                                                                       </div>">
-                                                                    {{#if this.analysis}}
-                                                                        {{#if this.analysis.price}}
-                                                                            ${{formatNumber this.analysis.price 2}}
-                                                                        {{else}}
-                                                                            <span class="text-muted">Price not available</span>
-                                                                        {{/if}}
-                                                                    {{else}}
+                                                                                                                                         {{#if this.analysis}}
+                                                                         {{#if this.analysis.price}}
+                                                                             ${{formatNumber this.analysis.price 2}}
+                                                                             {{#if this.analysis.deliveryInfo}}
+                                                                                 <br><small class="text-info">
+                                                                                     <i class="fas fa-shipping-fast me-1"></i>
+                                                                                     {{this.analysis.deliveryInfo.text}}
+                                                                                 </small>
+                                                                             {{/if}}
+                                                                         {{else}}
+                                                                             <span class="text-muted">Price not available</span>
+                                                                         {{/if}}
+                                                                     {{else}}
                                                                         {{#if this.price}}
                                                                             {{#if (eq this.price "No Amazon results found for this product.")}}
                                                                                 <span class="text-muted">Price not available</span>
@@ -426,15 +508,18 @@
                                                                         <span class="profit-badge bg-{{#if (gt this.analysis.profit 0)}}success{{else}}danger{{/if}} text-white"
                                                                               data-bs-toggle="tooltip" 
                                                                               data-bs-html="true"
-                                                                              title="<strong>Cost Breakdown:</strong><br>
-                                                                              <div style='text-align: left;'>
-                                                                              <strong>Amazon Sell Price:</strong> ${{formatNumber this.analysis.price 2}}<br>
-                                                                              <strong>Wholesale Cost:</strong> ${{formatNumber this.analysis.adjustedWholesaleCost 2}}<br>
-                                                                              <strong>Amazon Fee (15%):</strong> ${{formatNumber this.analysis.amazonFee 2}}<br>
-                                                                              <strong>Shipping:</strong> $6.00<br>
-                                                                              <strong>Total Costs:</strong> ${{formatNumber this.analysis.totalCosts 2}}<br>
-                                                                              <strong>Profit:</strong> ${{formatNumber this.analysis.profit 2}}<br>
-                                                                              <strong>Profit Margin:</strong> {{formatNumber this.analysis.margin 1}}%
+                                                                                                                                                             title="<strong>Cost Breakdown:</strong><br>
+                                                                               <div style='text-align: left;'>
+                                                                               <strong>Amazon Sell Price:</strong> ${{formatNumber this.analysis.price 2}}<br>
+                                                                               {{#if this.analysis.deliveryInfo}}
+                                                                               <strong>Delivery Cost:</strong> ${{formatNumber this.analysis.deliveryInfo.cost 2}}<br>
+                                                                               {{/if}}
+                                                                               <strong>Wholesale Cost:</strong> ${{formatNumber this.analysis.adjustedWholesaleCost 2}}<br>
+                                                                               <strong>Amazon Fee (15%):</strong> ${{formatNumber this.analysis.amazonFee 2}}<br>
+                                                                               <strong>Shipping:</strong> $6.00<br>
+                                                                               <strong>Total Costs:</strong> ${{formatNumber this.analysis.totalCosts 2}}<br>
+                                                                               <strong>Profit:</strong> ${{formatNumber this.analysis.profit 2}}<br>
+                                                                               <strong>Profit Margin:</strong> {{formatNumber this.analysis.margin 1}}%
                                                                               {{#if this.analysis.costAdjustmentReason}}
                                                                               <br><br><strong>Cost Adjustment:</strong><br>
                                                                               <small>{{this.analysis.costAdjustmentReason}}</small>
@@ -489,6 +574,12 @@
                                                                         <i class="fas fa-external-link-alt me-1"></i>View on Amazon
                                                                     </a>
                                                                 </div>
+                                                            {{else if this.asin}}
+                                                                <div class="mt-2">
+                                                                    <a href="https://www.amazon.com/dp/{{this.asin}}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                        <i class="fas fa-external-link-alt me-1"></i>View on Amazon
+                                                                    </a>
+                                                                </div>
                                                             {{/if}}
                                                         </div>
                                                     </div>
@@ -500,6 +591,7 @@
                             </div>
                         {{/if}}
                     {{/each}}
+                    </div>
 
                     {{!-- Second: Show products with NO Amazon results in a compact grid --}}
                     <div class="no-results-section">
