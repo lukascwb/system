@@ -24,6 +24,7 @@ const wholesaleModule = require('./models/wholesale'); // Import your new module
 const WholesaleProduct = wholesaleModule.WholesaleProduct; // Get the model
 const AmazonWholesaleResult = wholesaleModule.AmazonWholesaleResult; // Get the model
 const processWholesaleProductsForAmazon = wholesaleModule.processWholesaleProductsForAmazon; // Get the function
+const performanceConfig = require('./config/performance');
 
 // ... rest of your index.js ...
 
@@ -300,7 +301,7 @@ app.get('/generate', authenticate, async function (req, res) {
   });
   
 */
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 2;
 
 app.get('/api/page/:page', authenticate, async function (req, res) { // Make the route handler async
 
@@ -1354,14 +1355,17 @@ app.get('/wholesale-list', authenticate, async (req, res) => {
 });
 
 app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res) => {
-    const startTime = Date.now(); // Start timing
     const wholesale_id = req.params.wholesale_id;
     const page = parseInt(req.query.page, 10) || 1; // For wholesale product pagination
-    const ITEMS_PER_PAGE = 10; // How many wholesale items to show on this detail page
+    const ITEMS_PER_PAGE = 2; // How many wholesale items to show on this detail page
 
     console.log(`--- ENTERING DETAIL ROUTE for wholesale_id: "${wholesale_id}" ---`);
+    console.log(`URL encoded wholesale_id: "${encodeURIComponent(wholesale_id)}"`);
+    console.log(`Current page: ${page}`);
+    console.log(`Request URL: ${req.url}`);
 
     try {
+        const startTime = Date.now(); // Start timing
         // Fetch WHOLESALE PRODUCTS for this batch, with pagination
         const wholesaleProducts = await WholesaleProduct.findAll({
             where: { wholesale_id: wholesale_id },
@@ -1380,38 +1384,12 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         }
         console.log(`Found ${wholesaleProducts.length} wholesale products for batch "${wholesale_id}".`);
 
-        // Search for Amazon results for EACH wholesale product in PARALLEL
-        console.log(`Starting parallel Amazon searches for ${wholesaleProducts.length} products...`);
+        // Process wholesale products in parallel batches for better performance
+        console.log(`Processing ${wholesaleProducts.length} wholesale products in parallel batches...`);
         
-        const wholesaleProductsWithResults = await Promise.all(
-            wholesaleProducts.map(async (wholesaleProduct) => {
-                // Construct the search query
-                const searchQuery = `${wholesaleProduct.brand ? wholesaleProduct.brand + ' ' : ''}${wholesaleProduct.title}`;
-                console.log(`Searching Amazon for product: "${wholesaleProduct.title}"`);
-                console.log(`Search query: "${searchQuery}"`);
-                
-                // Search for this specific product
-                const searchResult = await wholesaleModule.searchAmazonProduct(
-                    wholesaleProduct.brand, 
-                    wholesaleProduct.title
-                );
-                
-                let amazonResults = [];
-                if (searchResult && searchResult.length > 0) {
-                    console.log(`Found ${searchResult.length} Amazon results for "${wholesaleProduct.title}"`);
-                    amazonResults = searchResult;
-                } else {
-                    console.log(`No Amazon results found for "${wholesaleProduct.title}"`);
-                    amazonResults = [{ title: "No Amazon results found for this product.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
-                }
-                
-                // Return the wholesale product with its Amazon results and search query
-                return {
-                    wholesaleProduct: wholesaleProduct,
-                    amazonResults: amazonResults,
-                    searchQuery: searchQuery
-                };
-            })
+        const wholesaleProductsWithResults = await wholesaleModule.processWholesaleProductsInBatches(
+            wholesaleProducts
+            // Uses default values from performance config: batchSize=5, delayBetweenBatches=2000
         );
         
         console.log(`Processed ${wholesaleProductsWithResults.length} wholesale products with individual Amazon searches.`);
@@ -1422,26 +1400,40 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         const wholesaleStartPage = Math.max(1, page - 2);
         const wholesaleEndPage = Math.min(totalWholesalePages, page + 2);
 
-        // Perform profitability analysis for each wholesale product in PARALLEL
+        // Perform profitability analysis in parallel batches for better performance
         console.log(`Starting parallel profitability analysis for ${wholesaleProductsWithResults.length} products...`);
         
         const analysisPromises = wholesaleProductsWithResults.map(async (productData, i) => {
-            console.log(`\n=== ANALYZING WHOLESALE PRODUCT ${i + 1} ===`);
-            console.log('Wholesale Product:', productData.wholesaleProduct.title);
-            console.log('Amazon Results Count:', productData.amazonResults.length);
-            
-            const analysis = await wholesaleModule.analyzeProfitability(productData.wholesaleProduct, productData.amazonResults);
-            
-            // Replace amazonResults with only profitable results
-            if (analysis.profitableResults && analysis.profitableResults.length > 0) {
-                productData.amazonResults = analysis.profitableResults;
-            } else {
-                productData.amazonResults = [];
+            try {
+                console.log(`\n=== ANALYZING WHOLESALE PRODUCT ${i + 1} ===`);
+                console.log('Wholesale Product:', productData.wholesaleProduct.title);
+                console.log('Amazon Results Count:', productData.amazonResults.length);
+                
+                const analysis = await wholesaleModule.analyzeProfitability(productData.wholesaleProduct, productData.amazonResults);
+                
+                // Replace amazonResults with only profitable results
+                if (analysis.profitableResults && analysis.profitableResults.length > 0) {
+                    productData.amazonResults = analysis.profitableResults;
+                } else {
+                    productData.amazonResults = [];
+                }
+                
+                console.log(`=== END ANALYZING WHOLESALE PRODUCT ${i + 1} ===\n`);
+                
+                return { index: i, analysis: analysis, productData: productData };
+            } catch (error) {
+                console.error(`Error analyzing product ${i + 1}:`, error);
+                return { 
+                    index: i, 
+                    analysis: { 
+                        profitableResults: [], 
+                        lowConfidenceResults: [], 
+                        totalResults: 0,
+                        fromCache: false 
+                    }, 
+                    productData: productData 
+                };
             }
-            
-            console.log(`=== END ANALYZING WHOLESALE PRODUCT ${i + 1} ===\n`);
-            
-            return { index: i, analysis: analysis, productData: productData };
         });
         
         const analysisResultsArray = await Promise.all(analysisPromises);
@@ -1453,24 +1445,23 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
             wholesaleProductsWithResults[index] = productData;
         });
 
-        // Calculate total page load time
-        const endTime = Date.now();
-        const totalLoadTime = ((endTime - startTime) / 1000).toFixed(2); // Convert to seconds with 2 decimal places
+        const endTime = Date.now(); // End timing
+        const totalLoadTime = ((endTime - startTime) / 1000).toFixed(2); // Calculate total load time in seconds
 
         res.render('wholesale-products-detail', {
             wholesale_id: wholesale_id,
             wholesaleProductsWithResults: wholesaleProductsWithResults, // Pass the array with products and their individual Amazon results
             analysisResults: analysisResults,      // Pass the profitability analysis results
+            totalLoadTime: performanceConfig.performanceMonitoring.enabled ? totalLoadTime : null, // Pass totalLoadTime conditionally
             
             // Wholesale product pagination data
             wholesaleCurrentPage: page,
             wholesaleTotalPages: totalWholesalePages,
             wholesaleStartPage: wholesaleStartPage,
             wholesaleEndPage: wholesaleEndPage,
-            wholesalePageUrl: `/wholesale-products-by-id/${wholesale_id}?page=`,
+            wholesalePageUrl: `/wholesale-products-by-id/${encodeURIComponent(wholesale_id)}?page=`,
             
-            // Page load time
-            totalLoadTime: totalLoadTime,
+            wholesaleItemsPerPage: ITEMS_PER_PAGE,
             
             page: 'wholesale_details'
         });
@@ -1480,4 +1471,180 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         res.status(500).send(`Error loading details for wholesale batch "${wholesale_id}".`);
     }
     console.log(`--- EXITING DETAIL ROUTE for wholesale_id: "${wholesale_id}" ---`);
+});
+
+// API route to fetch SearchAPI JSON data for a specific product
+app.get('/api/wholesale/searchapi-json/:productId', authenticate, async (req, res) => {
+    const productId = req.params.productId;
+    
+    try {
+        console.log(`API: Fetching JSON data for product ID: ${productId}`);
+        console.log(`API: User session:`, req.session.user);
+        
+        // Get the wholesale product
+        const wholesaleProduct = await WholesaleProduct.findByPk(productId);
+        
+        if (!wholesaleProduct) {
+            console.log(`API: Product not found for ID: ${productId}`);
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        console.log(`API: Found product: ${wholesaleProduct.title}`);
+        console.log(`API: Product brand: ${wholesaleProduct.brand}`);
+        
+        // Check if API key is available
+        if (!process.env.api_key) {
+            console.error('API: No API key configured');
+            return res.status(500).json({ error: 'SearchAPI key not configured' });
+        }
+        
+        // Use cached data if available, otherwise make new API call
+        console.log(`API: Calling searchAmazonProductWithUrlsAndCache for brand: "${wholesaleProduct.brand}", title: "${wholesaleProduct.title}", wholesale_id: "${wholesaleProduct.wholesale_id}", product_id: ${wholesaleProduct.id}`);
+        const searchApiResponse = await wholesaleModule.searchAmazonProductWithUrlsAndCache(
+            wholesaleProduct.brand, 
+            wholesaleProduct.title,
+            wholesaleProduct.wholesale_id,
+            wholesaleProduct.id
+        );
+        
+        if (!searchApiResponse) {
+            console.log(`API: No SearchAPI response for product: ${wholesaleProduct.title}`);
+            return res.status(404).json({ error: 'No SearchAPI response received' });
+        }
+        
+        console.log(`API: SearchAPI response received:`, {
+            hasSearchMetadata: !!searchApiResponse.search_metadata,
+            hasJsonUrl: !!(searchApiResponse.search_metadata && searchApiResponse.search_metadata.json_url),
+            jsonUrl: searchApiResponse.search_metadata ? searchApiResponse.search_metadata.json_url : 'N/A'
+        });
+        
+        if (!searchApiResponse.search_metadata || !searchApiResponse.search_metadata.json_url) {
+            console.log(`API: No JSON URL in SearchAPI response for product: ${wholesaleProduct.title}`);
+            return res.status(404).json({ error: 'No SearchAPI JSON URL available' });
+        }
+        
+        console.log(`API: Fetching JSON from URL: ${searchApiResponse.search_metadata.json_url}`);
+        
+        // Fetch the actual JSON data from the SearchAPI URL
+        const jsonData = await wholesaleModule.fetchSearchApiJsonData(searchApiResponse.search_metadata.json_url);
+        
+        if (!jsonData) {
+            console.log(`API: Failed to fetch JSON data from SearchAPI URL`);
+            return res.status(500).json({ error: 'Failed to fetch JSON data from SearchAPI' });
+        }
+        
+        console.log(`API: Successfully fetched JSON data for product: ${wholesaleProduct.title}`);
+        console.log(`API: JSON data type:`, typeof jsonData);
+        console.log(`API: JSON data keys:`, Object.keys(jsonData));
+        
+        res.json({
+            success: true,
+            data: jsonData,
+            searchMetadata: searchApiResponse.search_metadata,
+            from_cache: searchApiResponse.cached || false
+        });
+        
+    } catch (error) {
+        console.error('Error fetching SearchAPI JSON data:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: `Internal server error: ${error.message}` });
+    }
+});
+
+// API route to fetch SearchAPI HTML data for a specific product
+app.get('/api/wholesale/searchapi-html/:productId', authenticate, async (req, res) => {
+    const productId = req.params.productId;
+    
+    try {
+        console.log(`API: Fetching HTML data for product ID: ${productId}`);
+        
+        // Get the wholesale product
+        const wholesaleProduct = await WholesaleProduct.findByPk(productId);
+        
+        if (!wholesaleProduct) {
+            console.log(`API: Product not found for ID: ${productId}`);
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        console.log(`API: Found product: ${wholesaleProduct.title}`);
+        
+        // Use cached data if available, otherwise make new API call
+        const searchApiResponse = await wholesaleModule.searchAmazonProductWithUrlsAndCache(
+            wholesaleProduct.brand, 
+            wholesaleProduct.title,
+            wholesaleProduct.wholesale_id,
+            wholesaleProduct.id
+        );
+        
+        if (!searchApiResponse) {
+            console.log(`API: No SearchAPI response for product: ${wholesaleProduct.title}`);
+            return res.status(404).json({ error: 'No SearchAPI response received' });
+        }
+        
+        if (!searchApiResponse.search_metadata || !searchApiResponse.search_metadata.html_url) {
+            console.log(`API: No HTML URL in SearchAPI response for product: ${wholesaleProduct.title}`);
+            return res.status(404).json({ error: 'No SearchAPI HTML URL available' });
+        }
+        
+        console.log(`API: Fetching HTML from URL: ${searchApiResponse.search_metadata.html_url}`);
+        
+        // Fetch the actual HTML data from the SearchAPI URL
+        const htmlData = await wholesaleModule.fetchSearchApiHtmlData(searchApiResponse.search_metadata.html_url);
+        
+        if (!htmlData) {
+            console.log(`API: Failed to fetch HTML data from SearchAPI URL`);
+            return res.status(500).json({ error: 'Failed to fetch HTML data from SearchAPI' });
+        }
+        
+        console.log(`API: Successfully fetched HTML data for product: ${wholesaleProduct.title}`);
+        
+        res.json({
+            success: true,
+            data: htmlData,
+            searchMetadata: searchApiResponse.search_metadata,
+            from_cache: searchApiResponse.cached || false
+        });
+        
+    } catch (error) {
+        console.error('Error fetching SearchAPI HTML data:', error);
+        res.status(500).json({ error: `Internal server error: ${error.message}` });
+    }
+});
+
+// API route to get SearchAPI metadata for a specific product
+app.get('/api/wholesale/searchapi-metadata/:productId', authenticate, async (req, res) => {
+    const productId = req.params.productId;
+    
+    try {
+        // Get the wholesale product
+        const wholesaleProduct = await WholesaleProduct.findByPk(productId);
+        
+        if (!wholesaleProduct) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Use cached data if available, otherwise make new API call
+        const searchApiResponse = await wholesaleModule.searchAmazonProductWithUrlsAndCache(
+            wholesaleProduct.brand, 
+            wholesaleProduct.title,
+            wholesaleProduct.wholesale_id,
+            wholesaleProduct.id
+        );
+        
+        if (!searchApiResponse || !searchApiResponse.search_metadata) {
+            return res.status(404).json({ error: 'No SearchAPI metadata available' });
+        }
+        
+        res.json({
+            success: true,
+            searchMetadata: searchApiResponse.search_metadata,
+            searchParameters: searchApiResponse.search_parameters,
+            searchInformation: searchApiResponse.search_information,
+            from_cache: searchApiResponse.cached || false
+        });
+        
+    } catch (error) {
+        console.error('Error fetching SearchAPI metadata:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });

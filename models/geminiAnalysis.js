@@ -241,35 +241,41 @@ AMAZON PRODUCT:
 
 ANALYSIS RULES:
 
-APPROVE ONLY if:
-- Same brand (or brand is missing from one but present in the other)
-- Same core product (same model, type, variant)
-- Minor differences in packaging, size, or description are acceptable
-- Product is essentially the same item
-- Brand names that are similar or variations of each other (e.g., "Cinnamon Toast Crunch" vs "Cinnamon Toast Crunch")
+APPROVE if ANY of these conditions are met:
+1. Same brand (case-insensitive)
+2. Brand is missing from one but present in the other (e.g., "Cheerios" in wholesale vs no brand in Amazon)
+3. Same core product type with similar names (e.g., "Oat Crunch" vs "Oat Crunch")
+4. Product names are very similar and represent the same item
+5. Minor differences in packaging, size, or description
 
-REJECT if:
-- Different brands (when both brands are clearly specified and different)
-- Different product types/models
-- Completely different products
-- Major differences in product specifications
+REJECT only if:
+- Completely different product types (e.g., cereal vs electronics)
+- Different brands when both are clearly specified and different (e.g., "Kellogg's" vs "General Mills")
+- Major differences in product specifications that indicate different items
 
-Consider:
-- Brand matching (case-insensitive)
-- Product type matching
-- Size/quantity variations are usually acceptable
-- Packaging differences are usually acceptable
-- Brand variations and abbreviations
+SPECIAL CONSIDERATIONS:
+- Size differences are usually acceptable (e.g., 24 oz vs 15.2 oz)
+- Brand variations and abbreviations should be considered the same
+- Missing brand information should not prevent a match if the product names are similar
+- Focus on the core product name, not packaging details
 
-IMPORTANT: For the example above:
-- Wholesale: "Cinnamon Toast Crunch French, Breakfast Cereal, 18.1 oz" (Brand: "Cinnamon Toast Crunch")
-- Amazon: "French, Breakfast Cereal, 18.1 oz" (Brand: "Cinnamon Toast Crunch")
-- These should MATCH because they have the same brand and same product type
+EXAMPLES:
+- "Cheerios Oat Crunch Cinnamon" vs "Cinnamon Oat Crunch" = MATCH (same core product)
+- "Cinnamon Toast Crunch" vs "Cinnamon Toast Crunch" = MATCH (same brand and product)
+- "Kellogg's Corn Flakes" vs "General Mills Corn Flakes" = NO MATCH (different brands)
+
+CONFIDENCE SCORING (0-10):
+- 9-10: Perfect match, same brand and product name
+- 7-8: Very similar, same brand with minor variations
+- 5-6: Good match, similar product names, brand match or missing
+- 3-4: Moderate match, some similarities but some differences
+- 1-2: Weak match, minimal similarities
+- 0: No match, completely different products
 
 Respond with JSON format only:
 {
   "match": true/false,
-  "confidence": "high/medium/low",
+  "confidence_score": 0-10,
   "reason": "brief explanation",
   "brand_match": true/false,
   "title_similarity": "high/medium/low"
@@ -341,45 +347,74 @@ Respond with JSON format only:
 
         // Fallback analysis for cases where Gemini might be too strict
         let finalMatch = analysisResult.match || false;
-        let finalConfidence = analysisResult.confidence || "low";
+        let finalConfidenceScore = analysisResult.confidence_score || 0;
         
-        // If Gemini says no match, but brands are clearly the same, do a manual check
-        if (!finalMatch && wholesaleBrand && amazonBrand) {
-            const wholesaleBrandLower = wholesaleBrand.toLowerCase().trim();
-            const amazonBrandLower = amazonBrand.toLowerCase().trim();
+        // If Gemini says no match, do a more lenient manual check
+        if (!finalMatch) {
+            const wholesaleTitleLower = wholesaleTitle.toLowerCase();
+            const amazonTitleLower = amazonTitle.toLowerCase();
+            const wholesaleBrandLower = wholesaleBrand ? wholesaleBrand.toLowerCase().trim() : '';
+            const amazonBrandLower = amazonBrand ? amazonBrand.toLowerCase().trim() : '';
             
-            if (wholesaleBrandLower === amazonBrandLower) {
-                // Brands match exactly, check if product types are similar
-                const wholesaleWords = wholesaleTitle.toLowerCase().split(' ');
-                const amazonWords = amazonTitle.toLowerCase().split(' ');
+            // Check for brand match (including cases where one is missing)
+            const brandMatch = !wholesaleBrandLower || !amazonBrandLower || 
+                              wholesaleBrandLower === amazonBrandLower ||
+                              wholesaleTitleLower.includes(amazonBrandLower) ||
+                              amazonTitleLower.includes(wholesaleBrandLower);
+            
+            // Check for product name similarity
+            const wholesaleWords = wholesaleTitleLower.split(' ');
+            const amazonWords = amazonTitleLower.split(' ');
+            
+            // Look for key product identifiers
+            const keyProductWords = ['cereal', 'breakfast', 'toast', 'crunch', 'oat', 'cinnamon', 'cheerios'];
+            const wholesaleKeyWords = keyProductWords.filter(keyword => 
+                wholesaleWords.some(word => word.includes(keyword))
+            );
+            const amazonKeyWords = keyProductWords.filter(keyword => 
+                amazonWords.some(word => word.includes(keyword))
+            );
+            
+            // Check if there's significant overlap in key words
+            const commonKeyWords = wholesaleKeyWords.filter(word => amazonKeyWords.includes(word));
+            const hasSignificantOverlap = commonKeyWords.length >= 2;
+            
+            // Additional check for similar product names
+            const titleSimilarity = wholesaleWords.filter(word => 
+                amazonWords.some(amazonWord => 
+                    word.length > 3 && amazonWord.length > 3 && 
+                    (word.includes(amazonWord) || amazonWord.includes(word))
+                )
+            ).length;
+            
+            const hasTitleSimilarity = titleSimilarity >= 2;
+            
+            if ((brandMatch || hasSignificantOverlap) && (hasSignificantOverlap || hasTitleSimilarity)) {
+                finalMatch = true;
+                // Calculate confidence score based on the strength of the match
+                let fallbackScore = 3; // Base score for fallback matches
+                if (brandMatch) fallbackScore += 2;
+                if (hasSignificantOverlap) fallbackScore += 2;
+                if (hasTitleSimilarity) fallbackScore += 1;
+                finalConfidenceScore = Math.min(fallbackScore, 6); // Cap at 6 for fallback matches
                 
-                // Check for common product keywords
-                const commonKeywords = ['cereal', 'breakfast', 'toast', 'crunch', 'french'];
-                const wholesaleHasKeywords = commonKeywords.some(keyword => 
-                    wholesaleWords.some(word => word.includes(keyword))
-                );
-                const amazonHasKeywords = commonKeywords.some(keyword => 
-                    amazonWords.some(word => word.includes(keyword))
-                );
-                
-                if (wholesaleHasKeywords && amazonHasKeywords) {
-                    finalMatch = true;
-                    finalConfidence = "high";
-                    console.log(`=== FALLBACK MATCH DETECTED FOR POSITION ${position} ===`);
-                    console.log('Brands match and product keywords found in both titles');
-                    console.log('Wholesale Brand:', wholesaleBrand);
-                    console.log('Amazon Brand:', amazonBrand);
-                    console.log('Common Keywords Found:', commonKeywords.filter(keyword => 
-                        wholesaleWords.some(word => word.includes(keyword)) && 
-                        amazonWords.some(word => word.includes(keyword))
-                    ));
-                }
+                console.log(`=== FALLBACK MATCH DETECTED FOR POSITION ${position} ===`);
+                console.log('Brand match or significant product overlap found');
+                console.log('Wholesale Title:', wholesaleTitle);
+                console.log('Amazon Title:', amazonTitle);
+                console.log('Wholesale Brand:', wholesaleBrand);
+                console.log('Amazon Brand:', amazonBrand);
+                console.log('Common Key Words:', commonKeyWords);
+                console.log('Title Similarity Score:', titleSimilarity);
+                console.log('Brand Match:', brandMatch);
+                console.log('Has Significant Overlap:', hasSignificantOverlap);
+                console.log('Fallback Confidence Score:', finalConfidenceScore);
             }
         }
 
         const finalResult = {
             isMatch: finalMatch,
-            confidence: finalConfidence,
+            confidenceScore: finalConfidenceScore,
             reason: analysisResult.reason || "Analysis completed",
             brandMatch: analysisResult.brand_match || false,
             titleSimilarity: analysisResult.title_similarity || "low",
@@ -391,7 +426,7 @@ Respond with JSON format only:
 
         console.log(`\n=== FINAL RESULT FOR POSITION ${position} ===`);
         console.log('Match:', finalResult.isMatch ? '✅ YES' : '❌ NO');
-        console.log('Confidence:', finalResult.confidence);
+        console.log('Confidence Score:', finalResult.confidenceScore);
         console.log('Reason:', finalResult.reason);
         console.log('Brand Match:', finalResult.brandMatch ? '✅ YES' : '❌ NO');
         console.log('Title Similarity:', finalResult.titleSimilarity);
@@ -403,7 +438,7 @@ Respond with JSON format only:
         console.error("Error analyzing wholesale-Amazon match with Gemini:", error);
         return {
             isMatch: false,
-            confidence: "low",
+            confidenceScore: 0,
             reason: "Error in analysis",
             brandMatch: false,
             titleSimilarity: "low",

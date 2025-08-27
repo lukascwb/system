@@ -1,16 +1,20 @@
-const Sequelize = require('sequelize');
+const { Sequelize } = require('sequelize');
+const performanceConfig = require('../config/performance');
 const dotenv = require('dotenv');
 dotenv.config();
 
-
+let sequelize;
 
 try {
   //production
-  var sequelize = new Sequelize(process.env.DATABASE_URL, {
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'mysql',
     dialectOptions: {
       encrypt: true // Use SSL/TLS for security (recommended)
-    }
+    },
+    // Basic configuration
+    pool: performanceConfig.database.connectionPool,
+    logging: performanceConfig.database.logging,
   });
 } catch {
   //localhost
@@ -21,7 +25,10 @@ try {
       options: {
         encrypt: true // If using SSL/TLS (recommended)
       }
-    }
+    },
+    // Basic configuration
+    pool: performanceConfig.database.connectionPool,
+    logging: performanceConfig.database.logging
   });
 }
 

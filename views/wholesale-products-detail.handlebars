@@ -172,10 +172,41 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
-        .wholesale-compact-item .wholesale-thumbnail {
-            max-width: 80px;
-            max-height: 80px;
-        }
+                 .wholesale-compact-item .wholesale-thumbnail {
+             max-width: 80px;
+             max-height: 80px;
+         }
+         
+         /* Tooltip styling */
+         .tooltip {
+             font-size: 0.875rem;
+         }
+         
+         .tooltip-inner {
+             max-width: 300px;
+             text-align: left;
+             background-color: #e3f2fd;
+             color: #000;
+             border: 1px solid #2196f3;
+             border-radius: 6px;
+             padding: 8px 12px;
+         }
+         
+         .tooltip.bs-tooltip-top .tooltip-arrow::before {
+             border-top-color: #2196f3;
+         }
+         
+         .tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+             border-bottom-color: #2196f3;
+         }
+         
+         .tooltip.bs-tooltip-start .tooltip-arrow::before {
+             border-left-color: #2196f3;
+         }
+         
+         .tooltip.bs-tooltip-end .tooltip-arrow::before {
+             border-right-color: #2196f3;
+         }
     </style>
 </head>
 <body>
@@ -192,17 +223,43 @@
                                 </span>
                             </div>
                         {{/if}}
+                        {{#if wholesaleProductsWithResults}}
+                            <div class="mt-2">
+                                {{#with (lookup wholesaleProductsWithResults 0)}}
+                                    {{#if amazonResults.[0].from_cache}}
+                                        <span class="badge bg-info me-2">
+                                            <i class="fas fa-database me-1"></i>Using cached data (1-month policy)
+                                        </span>
+                                    {{else}}
+                                        <span class="badge bg-success me-2">
+                                            <i class="fas fa-sync-alt me-1"></i>Fresh data from API
+                                        </span>
+                                    {{/if}}
+                                {{/with}}
+                            </div>
+                        {{/if}}
                     </div>
-                    <a href="/wholesale-list" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to List
-                    </a>
+                                         <div class="d-flex gap-2">
+                         <button class="btn btn-outline-info btn-sm" 
+                                 data-bs-toggle="tooltip" 
+                                 data-bs-html="true"
+                                 title="<strong>Tooltip Test:</strong><br>If you can see this, tooltips are working! 🎉">
+                             <i class="fas fa-info-circle me-1"></i>Test Tooltip
+                         </button>
+                         <a href="/wholesale-list" class="btn btn-outline-secondary">
+                             <i class="fas fa-arrow-left me-2"></i>Back to List
+                         </a>
+                     </div>
                 </div>
 
                 {{#if message}}
                     <div class="alert alert-info">{{message}}</div>
                 {{/if}}
 
-                {{#if wholesaleProductsWithResults}}
+
+
+    <!-- Wholesale Products List -->
+    {{#if wholesaleProductsWithResults}}
                     {{!-- First: Show products with Amazon results --}}
                     {{#each wholesaleProductsWithResults}}
                         {{#if this.amazonResults.length}}
@@ -223,7 +280,18 @@
                                             {{/if}}
                                         </div>
                                         <div class="col-md-7">
-                                            <h4 class="mb-2">{{this.wholesaleProduct.title}}</h4>
+                                            <h4 class="mb-2">
+                                                {{this.wholesaleProduct.title}}
+                                                {{#if this.amazonResults.[0].from_cache}}
+                                                    <span class="badge bg-info ms-2" title="Data from cache (last updated within 1 month)">
+                                                        <i class="fas fa-database me-1"></i>Cached
+                                                    </span>
+                                                {{else}}
+                                                    <span class="badge bg-success ms-2" title="Fresh data from API">
+                                                        <i class="fas fa-sync-alt me-1"></i>Fresh
+                                                    </span>
+                                                {{/if}}
+                                            </h4>
                                             <div class="row">
                                                 {{#if this.wholesaleProduct.brand}}
                                                     <div class="col-md-4">
@@ -249,7 +317,19 @@
                                             {{/if}}
                                         </div>
                                         <div class="col-md-3 text-end">
-                                            <div class="price-highlight">${{formatNumber this.wholesaleProduct.wholesaleCost 2}}</div>
+                                            <div class="price-highlight" 
+                                                 data-bs-toggle="tooltip" 
+                                                 data-bs-html="true"
+                                                 title="<strong>Wholesale Cost Details:</strong><br>
+                                                 <div style='text-align: left;'>
+                                                 <strong>Original Cost:</strong> ${{formatNumber this.wholesaleProduct.wholesaleCost 2}}<br>
+                                                 {{#if (gt (lookup this.amazonResults 0 'analysis.adjustedWholesaleCost') (lookup this.amazonResults 0 'analysis.originalWholesaleCost'))}}
+                                                 <strong>Adjusted Cost:</strong> ${{formatNumber (lookup this.amazonResults 0 'analysis.adjustedWholesaleCost') 2}}<br>
+                                                 <small>(Package adjustment applied)</small>
+                                                 {{/if}}
+                                                 </div>">
+                                                ${{formatNumber this.wholesaleProduct.wholesaleCost 2}}
+                                            </div>
                                             <small>Wholesale Cost</small>
                                             <div class="mt-2 d-flex flex-column gap-1">
                                                 {{#if this.wholesaleProduct.hyperlink}}
@@ -257,10 +337,10 @@
                                                         <i class="fas fa-external-link-alt me-1"></i>View Store
                                                     </a>
                                                 {{/if}}
-                                                <button class="btn btn-sm btn-info" onclick="showJsonData('{{this.wholesaleProduct.id}}', {{json this.wholesaleProduct}})">
+                                                <button class="btn btn-sm btn-info" onclick="fetchSearchApiJsonData('{{this.wholesaleProduct.id}}')">
                                                     <i class="fas fa-code me-1"></i>JSON Data
                                                 </button>
-                                                <button class="btn btn-sm btn-warning" onclick="showAmazonSearch('{{this.wholesaleProduct.id}}', '{{this.wholesaleProduct.title}}')">
+                                                <button class="btn btn-sm btn-warning" onclick="fetchSearchApiHtmlData('{{this.wholesaleProduct.id}}')">
                                                     <i class="fas fa-search me-1"></i>Amazon Search
                                                 </button>
                                             </div>
@@ -293,7 +373,24 @@
                                                                 <div><i class="fas fa-tag me-1"></i>{{this.brand}}</div>
                                                             {{/if}}
                                                             <div class="d-flex justify-content-between align-items-center mt-2">
-                                                                <span class="price-highlight">
+                                                                <span class="price-highlight"
+                                                                      data-bs-toggle="tooltip" 
+                                                                      data-bs-html="true"
+                                                                      title="<strong>Amazon Price Details:</strong><br>
+                                                                      <div style='text-align: left;'>
+                                                                      {{#if this.analysis}}
+                                                                      <strong>Current Price:</strong> ${{formatNumber this.analysis.price 2}}<br>
+                                                                      <strong>Seller:</strong> {{this.seller}}<br>
+                                                                      <strong>Rating:</strong> {{this.rating}} ⭐<br>
+                                                                      <strong>Reviews:</strong> {{this.reviews}}<br>
+                                                                      {{#if this.recent_sales}}
+                                                                      <strong>Recent Sales:</strong> {{this.recent_sales}}
+                                                                      {{/if}}
+                                                                      {{else}}
+                                                                      <strong>Price Source:</strong> {{#if (lookup this 'extracted_price')}}Extracted{{else}}Raw{{/if}}<br>
+                                                                      <strong>Seller:</strong> {{this.seller}}
+                                                                      {{/if}}
+                                                                      </div>">
                                                                     {{#if this.analysis}}
                                                                         {{#if this.analysis.price}}
                                                                             ${{formatNumber this.analysis.price 2}}
@@ -326,26 +423,50 @@
                                                                 </span>
                                                                 {{#if this.analysis}}
                                                                     <div class="d-flex flex-column gap-1">
-                                                                        <span class="profit-badge bg-{{#if (gt this.analysis.profit 0)}}success{{else}}danger{{/if}} text-white">
+                                                                        <span class="profit-badge bg-{{#if (gt this.analysis.profit 0)}}success{{else}}danger{{/if}} text-white"
+                                                                              data-bs-toggle="tooltip" 
+                                                                              data-bs-html="true"
+                                                                              title="<strong>Cost Breakdown:</strong><br>
+                                                                              <div style='text-align: left;'>
+                                                                              <strong>Amazon Sell Price:</strong> ${{formatNumber this.analysis.price 2}}<br>
+                                                                              <strong>Wholesale Cost:</strong> ${{formatNumber this.analysis.adjustedWholesaleCost 2}}<br>
+                                                                              <strong>Amazon Fee (15%):</strong> ${{formatNumber this.analysis.amazonFee 2}}<br>
+                                                                              <strong>Shipping:</strong> $6.00<br>
+                                                                              <strong>Total Costs:</strong> ${{formatNumber this.analysis.totalCosts 2}}<br>
+                                                                              <strong>Profit:</strong> ${{formatNumber this.analysis.profit 2}}<br>
+                                                                              <strong>Profit Margin:</strong> {{formatNumber this.analysis.margin 1}}%
+                                                                              {{#if this.analysis.costAdjustmentReason}}
+                                                                              <br><br><strong>Cost Adjustment:</strong><br>
+                                                                              <small>{{this.analysis.costAdjustmentReason}}</small>
+                                                                              {{/if}}
+                                                                              </div>">
                                                                             {{#if this.analysis.profit}}
                                                                                 ${{formatNumber this.analysis.profit 2}} profit
                                                                             {{else}}
                                                                                 No profit data
                                                                             {{/if}}
                                                                         </span>
-                                                                        {{#if this.analysis.geminiMatch}}
-                                                                            <span class="badge bg-success text-white gemini-match-badge" style="font-size: 0.7em;" 
+                                                                                                                                                 {{#if this.analysis.geminiMatch}}
+                                                                             <span class="badge bg-success text-white gemini-match-badge" style="font-size: 0.7em;" 
+                                                                                   data-bs-toggle="tooltip" 
+                                                                                   data-bs-html="true"
+                                                                                   title="<strong>AI Analysis:</strong><br>Match: ✅ Yes<br>Confidence Score: {{this.analysis.geminiConfidenceScore}}/10<br>Brand Match: {{#if this.analysis.brandMatch}}✅{{else}}❌{{/if}}<br>Title Similarity: {{this.analysis.titleSimilarity}}<br>Reason: {{this.analysis.geminiReason}}{{#if this.analysis.from_cache}}<br><br><strong>Source:</strong> Cached AI Analysis{{else}}<br><br><strong>Source:</strong> Fresh AI Analysis{{/if}}">
+                                                                                   <i class="fas fa-robot me-1"></i>AI Match ({{this.analysis.geminiConfidenceScore}}/10){{#if this.analysis.from_cache}}<i class="fas fa-database ms-1" title="Cached"></i>{{/if}}
+                                                                             </span>
+                                                                         {{else}}
+                                                                             <span class="badge bg-warning text-dark gemini-match-badge" style="font-size: 0.7em;"
+                                                                                   data-bs-toggle="tooltip" 
+                                                                                   data-bs-html="true"
+                                                                                   title="<strong>AI Analysis:</strong><br>Match: ❌ No<br>Confidence Score: {{this.analysis.geminiConfidenceScore}}/10<br>Brand Match: {{#if this.analysis.brandMatch}}✅{{else}}❌{{/if}}<br>Title Similarity: {{this.analysis.titleSimilarity}}<br>Reason: {{this.analysis.geminiReason}}{{#if this.analysis.from_cache}}<br><br><strong>Source:</strong> Cached AI Analysis{{else}}<br><br><strong>Source:</strong> Fresh AI Analysis{{/if}}">
+                                                                                   <i class="fas fa-exclamation-triangle me-1"></i>No Match{{#if this.analysis.from_cache}}<i class="fas fa-database ms-1" title="Cached"></i>{{/if}}
+                                                                             </span>
+                                                                         {{/if}}
+                                                                        {{#if this.analysis.packageInfo.isPackage}}
+                                                                            <span class="badge bg-info text-white package-badge" style="font-size: 0.7em;"
                                                                                   data-bs-toggle="tooltip" 
                                                                                   data-bs-html="true"
-                                                                                  title="<strong>AI Analysis:</strong><br>Match: ✅ Yes<br>Confidence: {{this.analysis.geminiConfidence}}<br>Brand Match: {{#if this.analysis.brandMatch}}✅{{else}}❌{{/if}}<br>Title Similarity: {{this.analysis.titleSimilarity}}<br>Reason: {{this.analysis.geminiReason}}">
-                                                                                  <i class="fas fa-robot me-1"></i>AI Match ({{this.analysis.geminiConfidence}})
-                                                                            </span>
-                                                                        {{else}}
-                                                                            <span class="badge bg-warning text-dark gemini-match-badge" style="font-size: 0.7em;"
-                                                                                  data-bs-toggle="tooltip" 
-                                                                                  data-bs-html="true"
-                                                                                  title="<strong>AI Analysis:</strong><br>Match: ❌ No<br>Confidence: {{this.analysis.geminiConfidence}}<br>Brand Match: {{#if this.analysis.brandMatch}}✅{{else}}❌{{/if}}<br>Title Similarity: {{this.analysis.titleSimilarity}}<br>Reason: {{this.analysis.geminiReason}}">
-                                                                                  <i class="fas fa-exclamation-triangle me-1"></i>No Match
+                                                                                  title="<strong>Package Detection:</strong><br>Quantity: {{this.analysis.packageInfo.quantity}} {{this.analysis.packageInfo.packageType}}<br>Confidence: {{this.analysis.packageInfo.confidence}}<br>Reason: {{this.analysis.packageInfo.reason}}<br><br><strong>Cost Adjustment:</strong><br>Original: ${{formatNumber this.analysis.originalWholesaleCost 2}}<br>Adjusted: ${{formatNumber this.analysis.adjustedWholesaleCost 2}}">
+                                                                                  <i class="fas fa-box me-1"></i>{{this.analysis.packageInfo.quantity}} {{this.analysis.packageInfo.packageType}}
                                                                             </span>
                                                                         {{/if}}
                                                                     </div>
@@ -429,10 +550,10 @@
                                                             <i class="fas fa-external-link-alt me-1"></i>View Store
                                                         </a>
                                                     {{/if}}
-                                                    <button class="btn btn-sm btn-info" onclick="showJsonData('{{this.wholesaleProduct.id}}', {{json this.wholesaleProduct}})">
+                                                    <button class="btn btn-sm btn-info" onclick="fetchSearchApiJsonData('{{this.wholesaleProduct.id}}')">
                                                         <i class="fas fa-code me-1"></i>JSON Data
                                                     </button>
-                                                    <button class="btn btn-sm btn-warning" onclick="showAmazonSearch('{{this.wholesaleProduct.id}}', '{{this.wholesaleProduct.title}}')">
+                                                    <button class="btn btn-sm btn-warning" onclick="fetchSearchApiHtmlData('{{this.wholesaleProduct.id}}')">
                                                         <i class="fas fa-search me-1"></i>Amazon Search
                                                     </button>
                                                 </div>
@@ -450,7 +571,7 @@
                             <ul class="pagination justify-content-center">
                                 {{#if (gt wholesaleCurrentPage 1)}}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}">
+                                        <a class="page-link" href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}" onclick="console.log('Previous page clicked:', '{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}')">
                                             <i class="fas fa-chevron-left"></i> Previous
                                         </a>
                                     </li>
@@ -458,78 +579,236 @@
                                 
                                 {{#each (range wholesaleStartPage wholesaleEndPage)}}
                                     <li class="page-item {{#if (eq this ../wholesaleCurrentPage)}}active{{/if}}">
-                                        <a class="page-link" href="{{../wholesalePageUrl}}{{this}}">{{this}}</a>
+                                        <a class="page-link" href="{{../wholesalePageUrl}}{{this}}" onclick="console.log('Page {{this}} clicked:', '{{../wholesalePageUrl}}{{this}}')">{{this}}</a>
                                     </li>
                                 {{/each}}
                                 
                                 {{#if (lt wholesaleCurrentPage wholesaleTotalPages)}}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{wholesalePageUrl}}{{inc wholesaleCurrentPage}}">
+                                        <a class="page-link" href="{{wholesalePageUrl}}{{inc wholesaleCurrentPage}}" onclick="console.log('Next page clicked:', '{{wholesalePageUrl}}{{inc wholesaleCurrentPage}}')">
                                             Next <i class="fas fa-chevron-right"></i>
                                         </a>
                                     </li>
                                 {{/if}}
                             </ul>
                         </nav>
+                        
+                        <!-- Debug info -->
+                        <div class="text-center mt-2">
+                            <small class="text-muted">
+                                Debug: Page {{wholesaleCurrentPage}} of {{wholesaleTotalPages}} | 
+                                URL: {{wholesalePageUrl}} | 
+                                Wholesale ID: {{wholesale_id}}
+                            </small>
+                        </div>
                     {{/if}}
                 {{else}}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        No wholesale products found for this batch.
-                    </div>
-                {{/if}}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    No wholesale products found for this batch.
+                </div>
+            {{/if}}
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Initialize Bootstrap tooltips
-        document.addEventListener('DOMContentLoaded', function() {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl, {
-                    html: true,
-                    placement: 'top'
-                });
-            });
-        });
+         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+     <script>
+         // Initialize Bootstrap tooltips
+         document.addEventListener('DOMContentLoaded', function() {
+             // Initialize all tooltips
+             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                 return new bootstrap.Tooltip(tooltipTriggerEl, {
+                     html: true,
+                     placement: 'top',
+                     trigger: 'hover focus'
+                 });
+             });
+             
+             console.log(`Initialized ${tooltipList.length} tooltips`);
+         });
+         
+         // Function to reinitialize tooltips after dynamic content is loaded
+         function reinitializeTooltips() {
+             // Destroy existing tooltips first
+             var existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+             existingTooltips.forEach(function(element) {
+                 var tooltip = bootstrap.Tooltip.getInstance(element);
+                 if (tooltip) {
+                     tooltip.dispose();
+                 }
+             });
+             
+             // Initialize new tooltips
+             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                 return new bootstrap.Tooltip(tooltipTriggerEl, {
+                     html: true,
+                     placement: 'top',
+                     trigger: 'hover focus'
+                 });
+             });
+             
+             console.log(`Reinitialized ${tooltipList.length} tooltips`);
+         }
 
-        // Function to show JSON data in a modal
-        function showJsonData(productId, jsonData) {
-            const modal = new bootstrap.Modal(document.getElementById('jsonModal'));
-            document.getElementById('jsonModalTitle').textContent = `JSON Data - Product ID: ${productId}`;
-            document.getElementById('jsonModalBody').textContent = JSON.stringify(jsonData, null, 2);
+        // Function to fetch and display SearchAPI JSON data
+        async function fetchSearchApiJsonData(productId) {
+            const modalElement = document.getElementById('searchApiJsonModal');
+            const modal = new bootstrap.Modal(modalElement);
+            
+            // Reset modal state completely
+            document.getElementById('searchApiJsonModalTitle').textContent = `SearchAPI JSON Data - Product ID: ${productId}`;
+            document.getElementById('searchApiJsonLoading').style.display = 'block';
+            document.getElementById('searchApiJsonContent').style.display = 'none';
+            document.getElementById('searchApiJsonError').style.display = 'none';
+            document.getElementById('searchApiJsonMetadata').textContent = '';
+            document.getElementById('searchApiJsonBody').textContent = '';
+            
             modal.show();
+            
+            try {
+                console.log(`Fetching JSON data for product ID: ${productId}`);
+                
+                // Add a small delay to prevent rapid successive calls
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const response = await fetch(`/api/wholesale/searchapi-json/${productId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    },
+                    cache: 'no-cache', // Prevent caching issues
+                    credentials: 'same-origin' // Include cookies for authentication
+                });
+                
+                console.log(`Response status: ${response.status}`);
+                console.log(`Response headers:`, response.headers);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`HTTP error response: ${errorText}`);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Response result:', result);
+                
+                if (result.success) {
+                    // Hide loading, show content
+                    document.getElementById('searchApiJsonLoading').style.display = 'none';
+                    document.getElementById('searchApiJsonContent').style.display = 'block';
+                    
+                    // Show cache status in title
+                    const cacheStatus = result.from_cache ? ' (Cached Data)' : ' (Fresh Data)';
+                    document.getElementById('searchApiJsonModalTitle').textContent = `SearchAPI JSON Data - Product ID: ${productId}${cacheStatus}`;
+                    
+                    // Display metadata
+                    document.getElementById('searchApiJsonMetadata').textContent = JSON.stringify(result.searchMetadata, null, 2);
+                    
+                    // Display full JSON data
+                    document.getElementById('searchApiJsonBody').textContent = JSON.stringify(result.data, null, 2);
+                } else {
+                    throw new Error(result.error || 'Failed to fetch JSON data');
+                }
+            } catch (error) {
+                console.error('Error fetching SearchAPI JSON data:', error);
+                document.getElementById('searchApiJsonLoading').style.display = 'none';
+                document.getElementById('searchApiJsonError').style.display = 'block';
+                document.getElementById('searchApiJsonError').textContent = `Error: ${error.message}`;
+            }
         }
 
-        // Function to show Amazon search link
-        function showAmazonSearch(productId, productTitle) {
-            const searchQuery = encodeURIComponent(productTitle);
-            const amazonSearchUrl = `https://www.amazon.com/s?k=${searchQuery}`;
+        // Function to fetch and display SearchAPI HTML data
+        async function fetchSearchApiHtmlData(productId) {
+            const modalElement = document.getElementById('searchApiHtmlModal');
+            const modal = new bootstrap.Modal(modalElement);
             
-            const modal = new bootstrap.Modal(document.getElementById('amazonSearchModal'));
-            document.getElementById('amazonSearchModalTitle').textContent = `Amazon Search - Product ID: ${productId}`;
-            document.getElementById('amazonSearchUrl').href = amazonSearchUrl;
-            document.getElementById('amazonSearchUrl').textContent = amazonSearchUrl;
+            // Reset modal state completely
+            document.getElementById('searchApiHtmlModalTitle').textContent = `SearchAPI HTML Data - Product ID: ${productId}`;
+            document.getElementById('searchApiHtmlLoading').style.display = 'block';
+            document.getElementById('searchApiHtmlContent').style.display = 'none';
+            document.getElementById('searchApiHtmlError').style.display = 'none';
+            document.getElementById('searchApiHtmlMetadata').textContent = '';
+            document.getElementById('searchApiHtmlBody').innerHTML = '';
+            
             modal.show();
+            
+            try {
+                console.log(`Fetching HTML data for product ID: ${productId}`);
+                const response = await fetch(`/api/wholesale/searchapi-html/${productId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    cache: 'no-cache' // Prevent caching issues
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Hide loading, show content
+                    document.getElementById('searchApiHtmlLoading').style.display = 'none';
+                    document.getElementById('searchApiHtmlContent').style.display = 'block';
+                    
+                    // Show cache status in title
+                    const cacheStatus = result.from_cache ? ' (Cached Data)' : ' (Fresh Data)';
+                    document.getElementById('searchApiHtmlModalTitle').textContent = `SearchAPI HTML Data - Product ID: ${productId}${cacheStatus}`;
+                    
+                    // Display metadata
+                    document.getElementById('searchApiHtmlMetadata').textContent = JSON.stringify(result.searchMetadata, null, 2);
+                    
+                    // Display HTML data
+                    document.getElementById('searchApiHtmlBody').innerHTML = result.data;
+                } else {
+                    throw new Error(result.error || 'Failed to fetch HTML data');
+                }
+            } catch (error) {
+                console.error('Error fetching SearchAPI HTML data:', error);
+                document.getElementById('searchApiHtmlLoading').style.display = 'none';
+                document.getElementById('searchApiHtmlError').style.display = 'block';
+                document.getElementById('searchApiHtmlError').textContent = `Error: ${error.message}`;
+            }
         }
     </script>
 
-    <!-- JSON Data Modal -->
-    <div class="modal fade" id="jsonModal" tabindex="-1" aria-labelledby="jsonModalTitle" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+    <!-- SearchAPI JSON Data Modal -->
+    <div class="modal fade" id="searchApiJsonModal" tabindex="-1" aria-labelledby="searchApiJsonModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-lg-down" style="max-width: 95%; width: 95%;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="jsonModalTitle">JSON Data</h5>
+                    <h5 class="modal-title" id="searchApiJsonModalTitle">SearchAPI JSON Data</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <pre id="jsonModalBody" style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto;"></pre>
+                    <div id="searchApiJsonLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Fetching SearchAPI JSON data...</p>
+                    </div>
+                    <div id="searchApiJsonContent" style="display: none;">
+                        <div class="mb-3">
+                            <h6>Search Metadata:</h6>
+                            <pre id="searchApiJsonMetadata" style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9em; max-height: 200px; overflow-y: auto;"></pre>
+                        </div>
+                        <div>
+                            <h6>Full JSON Response:</h6>
+                            <pre id="searchApiJsonBody" style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto; font-size: 0.8em;"></pre>
+                        </div>
+                    </div>
+                    <div id="searchApiJsonError" class="alert alert-danger" style="display: none;"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="copyToClipboard('jsonModalBody')">
+                    <button type="button" class="btn btn-primary" onclick="copyToClipboard('searchApiJsonBody')">
                         <i class="fas fa-copy me-1"></i>Copy JSON
                     </button>
                 </div>
@@ -537,27 +816,41 @@
         </div>
     </div>
 
-    <!-- Amazon Search Modal -->
-    <div class="modal fade" id="amazonSearchModal" tabindex="-1" aria-labelledby="amazonSearchModalTitle" aria-hidden="true">
-        <div class="modal-dialog">
+    <!-- SearchAPI HTML Data Modal -->
+    <div class="modal fade" id="searchApiHtmlModal" tabindex="-1" aria-labelledby="searchApiHtmlModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-lg-down" style="max-width: 95%; width: 95%;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="amazonSearchModalTitle">Amazon Search Link</h5>
+                    <h5 class="modal-title" id="searchApiHtmlModalTitle">SearchAPI HTML Data</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Search Query:</strong> <span id="amazonSearchQuery"></span></p>
-                    <p><strong>Amazon Search URL:</strong></p>
-                    <a id="amazonSearchUrl" href="#" target="_blank" class="text-break"></a>
+                    <div id="searchApiHtmlLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Fetching SearchAPI HTML data...</p>
+                    </div>
+                    <div id="searchApiHtmlContent" style="display: none;">
+                        <div class="mb-3">
+                            <h6>Search Metadata:</h6>
+                            <pre id="searchApiHtmlMetadata" style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9em; max-height: 200px; overflow-y: auto;"></pre>
+                        </div>
+                        <div>
+                            <h6>HTML Response:</h6>
+                            <div id="searchApiHtmlBody" style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6;"></div>
+                        </div>
+                    </div>
+                    <div id="searchApiHtmlError" class="alert alert-danger" style="display: none;"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-warning" onclick="copyToClipboard('amazonSearchUrl')">
-                        <i class="fas fa-copy me-1"></i>Copy URL
+                    <button type="button" class="btn btn-warning" onclick="copyToClipboard('searchApiHtmlBody')">
+                        <i class="fas fa-copy me-1"></i>Copy HTML
                     </button>
-                    <a id="amazonSearchUrlBtn" href="#" target="_blank" class="btn btn-primary">
-                        <i class="fas fa-external-link-alt me-1"></i>Open in Amazon
-                    </a>
+                    <button type="button" class="btn btn-info" onclick="downloadHtmlData()">
+                        <i class="fas fa-download me-1"></i>Download HTML
+                    </button>
                 </div>
             </div>
         </div>
@@ -567,13 +860,20 @@
         // Function to copy text to clipboard
         function copyToClipboard(elementId) {
             const element = document.getElementById(elementId);
-            const text = element.textContent || element.href;
+            let text;
+            
+            // Handle different types of elements
+            if (elementId === 'searchApiHtmlBody') {
+                text = element.innerHTML;
+            } else {
+                text = element.textContent || element.href;
+            }
             
             navigator.clipboard.writeText(text).then(function() {
                 // Show a temporary success message
                 const originalText = event.target.innerHTML;
                 event.target.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
-                event.target.classList.remove('btn-primary', 'btn-warning');
+                event.target.classList.remove('btn-primary', 'btn-warning', 'btn-info');
                 event.target.classList.add('btn-success');
                 
                 setTimeout(function() {
@@ -581,8 +881,10 @@
                     event.target.classList.remove('btn-success');
                     if (originalText.includes('Copy JSON')) {
                         event.target.classList.add('btn-primary');
-                    } else {
+                    } else if (originalText.includes('Copy HTML')) {
                         event.target.classList.add('btn-warning');
+                    } else {
+                        event.target.classList.add('btn-info');
                     }
                 }, 2000);
             }).catch(function(err) {
@@ -590,18 +892,19 @@
             });
         }
 
-        // Update Amazon search modal with query
-        function showAmazonSearch(productId, productTitle) {
-            const searchQuery = encodeURIComponent(productTitle);
-            const amazonSearchUrl = `https://www.amazon.com/s?k=${searchQuery}`;
+        // Function to download HTML data
+        function downloadHtmlData() {
+            const htmlContent = document.getElementById('searchApiHtmlBody').innerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
             
-            const modal = new bootstrap.Modal(document.getElementById('amazonSearchModal'));
-            document.getElementById('amazonSearchModalTitle').textContent = `Amazon Search - Product ID: ${productId}`;
-            document.getElementById('amazonSearchQuery').textContent = productTitle;
-            document.getElementById('amazonSearchUrl').href = amazonSearchUrl;
-            document.getElementById('amazonSearchUrl').textContent = amazonSearchUrl;
-            document.getElementById('amazonSearchUrlBtn').href = amazonSearchUrl;
-            modal.show();
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'searchapi-html-data.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
