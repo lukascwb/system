@@ -8,27 +8,21 @@
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
           <a class="nav-link {{#if_eq page 'home'}}active{{/if_eq}}" aria-current="page" href="/">Home</a>
+        </li> <li class="nav-item">
+          <a class="nav-link {{#if_eq page 'keepa_upload'}}active{{/if_eq}}" href="/keepa">Upload Keepa CSV</a>
         </li>
         <li class="nav-item">
           <a class="nav-link {{#if_eq page 'list'}}active{{/if_eq}}" href="/list">List</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link {{#if_eq page 'keepa_upload'}}active{{/if_eq}}" href="/keepa">Upload Keepa CSV</a>
-        </li>
+       
         <!-- NEW LINK FOR WHOLESALE UPLOAD -->
         <li class="nav-item">
           <a class="nav-link {{#if_eq page 'wholesale_upload'}}active{{/if_eq}}" href="/wholesale">Upload Wholesale CSV</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link {{#if_eq page 'gemini'}}active{{/if_eq}}" href="/gemini-analyze">Gemini Analyze</a>
         </li>
            <!-- NEW LINK FOR WHOLESALE LIST -->
     <li class="nav-item">
       <a class="nav-link {{#if_eq page 'wholesale_list'}}active{{/if_eq}}" href="/wholesale-list">Wholesale Data List</a>
     </li>
-        <li class="nav-item">
-          <a class="nav-link {{#if_eq page 'wholesale_results'}}active{{/if_eq}}" href="/wholesale-results">Wholesale Results</a>
-        </li>
         
         <li class="nav-item">
           <form action="/logout" method="POST" class="d-inline">

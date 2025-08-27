@@ -101,6 +101,15 @@ app.engine('handlebars', handlebars.engine({
             }
             return options.inverse(this);
         },
+        formatNumber: function (number, decimals) {
+            if (number === null || number === undefined || number === '') return '0';
+            const parsed = parseFloat(number);
+            if (isNaN(parsed)) return '0';
+            return parsed.toFixed(decimals || 2);
+        },
+        json: function (context) {
+            return JSON.stringify(context);
+        },
     }
 }))
 
@@ -680,29 +689,56 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
 });
 
 app.get('/register', (req, res) => {
-    res.render('register');
+    res.render('register', {
+        layout: false // Don't use the main layout
+    });
 });
 app.post('/register', async (req, res) => {
     try {
+        const { username, password, confirmPassword } = req.body;
 
-        const { username, password } = req.body;
+        // Validate password confirmation
+        if (password !== confirmPassword) {
+            return res.render('register', { 
+                error: 'Passwords do not match.',
+                layout: false // Don't use the main layout
+            });
+        }
+
+        // Check if username already exists
+        const existingUser = await User.findOne({ where: { username: username } });
+        if (existingUser) {
+            return res.render('register', { 
+                error: 'Username already exists.',
+                layout: false // Don't use the main layout
+            });
+        }
+
+        // Validate password strength
+        if (password.length < 8) {
+            return res.render('register', { 
+                error: 'Password must be at least 8 characters long.',
+                layout: false // Don't use the main layout
+            });
+        }
 
         // Hash the password:
-        const hashedPassword = await bcryptjs.hash(password, 10); // 10 is the salt rounds (adjust if needed)
-
+        const hashedPassword = await bcryptjs.hash(password, 10);
 
         const user = await User.create({
             username: username,
-            password: hashedPassword // Store the hashed password 
+            password: hashedPassword
         });
 
-        // ... redirect or send a success response ...
-        res.redirect('/login');
-
-        //return res.status(401).send('Error to create.');
+        // Redirect to login with success message
+        res.redirect('/login?success=Account created successfully! Please log in.');
 
     } catch (error) {
-        return res.status(401).send('Error to create.');
+        console.error('Registration error:', error);
+        res.render('register', { 
+            error: 'Error creating account. Please try again.',
+            layout: false // Don't use the main layout
+        });
     }
 });
 
@@ -715,7 +751,38 @@ function authenticate(req, res, next) {
 }
 
 app.get('/login', (req, res) => {
-    res.render('login');
+    const success = req.query.success;
+    res.render('login', { 
+        success: success,
+        layout: false // Don't use the main layout
+    });
+});
+
+app.get('/dashboard', authenticate, async (req, res) => {
+    try {
+        // Get basic stats for the dashboard
+        const stats = {
+            keepaCount: 0,
+            wholesaleCount: 0,
+            analysisCount: 0
+        };
+        
+        // You can add actual database queries here to get real stats
+        // For now, we'll use placeholder values
+        
+        res.render('dashboard', {
+            user: req.session.user,
+            stats: stats,
+            page: 'dashboard'
+        });
+    } catch (error) {
+        console.error('Dashboard error:', error);
+        res.render('dashboard', {
+            user: req.session.user,
+            stats: null,
+            page: 'dashboard'
+        });
+    }
 });
 
 
@@ -727,7 +794,10 @@ app.post('/login', async (req, res) => {
         const user = await User.findOne({ where: { username: username } });
 
         if (!user) {
-            return res.status(401).send('Invalid username or password.');
+            return res.render('login', { 
+                error: 'Invalid username or password.',
+                layout: false // Don't use the main layout
+            });
         }
 
         // Compare passwords using bcryptjs:
@@ -739,9 +809,12 @@ app.post('/login', async (req, res) => {
                 id: user.id,
                 username: user.username
             };
-            res.redirect('/list'); // Redirect to your protected page
+            res.redirect('/dashboard'); // Redirect to dashboard
         } else {
-            res.status(401).send('Invalid username or password.');
+            res.render('login', { 
+                error: 'Invalid username or password.',
+                layout: false // Don't use the main layout
+            });
         }
     } catch (error) {
         // ... error handling ...
@@ -943,6 +1016,12 @@ app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async
         item: req.body.itemColumn || null
     };
 
+    // Debug: Log the column mapping
+    console.log('=== COLUMN MAPPING DEBUG ===');
+    console.log('Column mapping:', JSON.stringify(columnMapping, null, 2));
+    console.log('Form body:', JSON.stringify(req.body, null, 2));
+    console.log('=== END COLUMN MAPPING DEBUG ===');
+
     let processedLines = 0;
     let failedLines = 0;
     const errorMessages = [];
@@ -952,11 +1031,19 @@ app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async
     const parser = parse({
         columns: true, // Use headers to get column names
         skip_empty_lines: true,
+        trim: true, // Trim whitespace from values
+        skip_records_with_empty_values: false // Don't skip records with empty values
     });
 
     fileStream.pipe(parser)
         .on('data', async (record) => {
             try {
+                // Debug: Log the raw record data
+                console.log('=== RAW CSV RECORD ===');
+                console.log('Record:', JSON.stringify(record, null, 2));
+                console.log('Record keys:', Object.keys(record));
+                console.log('=== END RAW CSV RECORD ===');
+                
                 // Extract data using flexible column mapping
                 const extractedData = extractDataFromRecord(record, columnMapping);
                 
@@ -983,6 +1070,11 @@ app.post('/upload-wholesale', authenticate, upload.single('wholesaleCSV'), async
                     thumbnail: extractedData.thumbnail || null,
                     hyperlink: extractedData.hyperlink || null
                 };
+
+                // Debug logging for database save
+                console.log('=== DATABASE SAVE DEBUG ===');
+                console.log('Wholesale data to save:', JSON.stringify(wholesaleData, null, 2));
+                console.log('=== END DATABASE SAVE DEBUG ===');
 
                 // Save the wholesale product data to the database
                 await WholesaleProduct.create(wholesaleData);
@@ -1038,10 +1130,12 @@ function extractDataFromRecord(record, columnMapping) {
         if (!possibleNames) return null;
         const names = Array.isArray(possibleNames) ? possibleNames : [possibleNames];
         for (const name of names) {
-            if (name && record[name] !== undefined) {
+            if (name && record[name] !== undefined && record[name] !== null && record[name] !== '') {
+                console.log(`Found column "${name}" with value: "${record[name]}"`);
                 return record[name];
             }
         }
+        console.log(`No matching column found for: ${JSON.stringify(names)}`);
         return null;
     };
 
@@ -1055,11 +1149,19 @@ function extractDataFromRecord(record, columnMapping) {
     data.brand = findColumn([columnMapping.brand, 'Brand', 'brand']);
     data.size = findColumn([columnMapping.size, 'Size', 'size']);
     data.item = findColumn([columnMapping.item, 'Item', 'item', 'ITEM', 'SKU', 'sku']);
-    data.thumbnail = findColumn([columnMapping.thumbnail, 'Thumbnail', 'thumbnail', 'Image', 'image']);
+    data.thumbnail = findColumn([columnMapping.thumbnail, 'Thumbnail', 'thumbnail', 'Image', 'image', 'img']);
     data.hyperlink = findColumn([columnMapping.hyperlink, 'Hyperlink', 'hyperlink', 'Link', 'link', 'URL', 'url']);
     data.qty = findColumn(['Qty', 'qty', 'Quantity', 'quantity']);
     data.packSize = findColumn(['Pack Size', 'packSize', 'PackSize', 'Pack']);
     data.upc = findColumn(['UPC', 'upc']);
+
+    // Debug logging for thumbnail extraction
+    console.log('=== THUMBNAIL EXTRACTION DEBUG ===');
+    console.log('Column mapping thumbnail:', columnMapping.thumbnail);
+    console.log('Available record keys:', Object.keys(record));
+    console.log('Record thumbnail value:', record['thumbnail']);
+    console.log('Extracted thumbnail:', data.thumbnail);
+    console.log('=== END THUMBNAIL DEBUG ===');
 
     return data;
 }
@@ -1252,9 +1354,10 @@ app.get('/wholesale-list', authenticate, async (req, res) => {
 });
 
 app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res) => {
+    const startTime = Date.now(); // Start timing
     const wholesale_id = req.params.wholesale_id;
     const page = parseInt(req.query.page, 10) || 1; // For wholesale product pagination
-    const ITEMS_PER_PAGE = 2; // How many wholesale items to show on this detail page
+    const ITEMS_PER_PAGE = 10; // How many wholesale items to show on this detail page
 
     console.log(`--- ENTERING DETAIL ROUTE for wholesale_id: "${wholesale_id}" ---`);
 
@@ -1277,37 +1380,39 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         }
         console.log(`Found ${wholesaleProducts.length} wholesale products for batch "${wholesale_id}".`);
 
-        // Search for Amazon results for EACH wholesale product individually
-        const wholesaleProductsWithResults = [];
+        // Search for Amazon results for EACH wholesale product in PARALLEL
+        console.log(`Starting parallel Amazon searches for ${wholesaleProducts.length} products...`);
         
-        for (const wholesaleProduct of wholesaleProducts) {
-            // Construct the search query
-            const searchQuery = `${wholesaleProduct.brand ? wholesaleProduct.brand + ' ' : ''}${wholesaleProduct.title}`;
-            console.log(`Searching Amazon for product: "${wholesaleProduct.title}"`);
-            console.log(`Search query: "${searchQuery}"`);
-            
-            // Search for this specific product
-            const searchResult = await wholesaleModule.searchAmazonProduct(
-                wholesaleProduct.brand, 
-                wholesaleProduct.title
-            );
-            
-            let amazonResults = [];
-            if (searchResult && searchResult.length > 0) {
-                console.log(`Found ${searchResult.length} Amazon results for "${wholesaleProduct.title}"`);
-                amazonResults = searchResult;
-            } else {
-                console.log(`No Amazon results found for "${wholesaleProduct.title}"`);
-                amazonResults = [{ title: "No Amazon results found for this product.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
-            }
-            
-            // Add the wholesale product with its Amazon results and search query
-            wholesaleProductsWithResults.push({
-                wholesaleProduct: wholesaleProduct,
-                amazonResults: amazonResults,
-                searchQuery: searchQuery
-            });
-        }
+        const wholesaleProductsWithResults = await Promise.all(
+            wholesaleProducts.map(async (wholesaleProduct) => {
+                // Construct the search query
+                const searchQuery = `${wholesaleProduct.brand ? wholesaleProduct.brand + ' ' : ''}${wholesaleProduct.title}`;
+                console.log(`Searching Amazon for product: "${wholesaleProduct.title}"`);
+                console.log(`Search query: "${searchQuery}"`);
+                
+                // Search for this specific product
+                const searchResult = await wholesaleModule.searchAmazonProduct(
+                    wholesaleProduct.brand, 
+                    wholesaleProduct.title
+                );
+                
+                let amazonResults = [];
+                if (searchResult && searchResult.length > 0) {
+                    console.log(`Found ${searchResult.length} Amazon results for "${wholesaleProduct.title}"`);
+                    amazonResults = searchResult;
+                } else {
+                    console.log(`No Amazon results found for "${wholesaleProduct.title}"`);
+                    amazonResults = [{ title: "No Amazon results found for this product.", price: null, rating: null, reviews: null, seller: null, link: null, brand: null, thumbnail: null, recent_sales: null }];
+                }
+                
+                // Return the wholesale product with its Amazon results and search query
+                return {
+                    wholesaleProduct: wholesaleProduct,
+                    amazonResults: amazonResults,
+                    searchQuery: searchQuery
+                };
+            })
+        );
         
         console.log(`Processed ${wholesaleProductsWithResults.length} wholesale products with individual Amazon searches.`);
 
@@ -1317,20 +1422,40 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
         const wholesaleStartPage = Math.max(1, page - 2);
         const wholesaleEndPage = Math.min(totalWholesalePages, page + 2);
 
-        // Perform profitability analysis for each wholesale product with its own Amazon results
-        const analysisResults = {};
-        for (let i = 0; i < wholesaleProductsWithResults.length; i++) {
-            const productData = wholesaleProductsWithResults[i];
-            const analysis = wholesaleModule.analyzeProfitability(productData.wholesaleProduct, productData.amazonResults);
-            analysisResults[i] = analysis;
+        // Perform profitability analysis for each wholesale product in PARALLEL
+        console.log(`Starting parallel profitability analysis for ${wholesaleProductsWithResults.length} products...`);
+        
+        const analysisPromises = wholesaleProductsWithResults.map(async (productData, i) => {
+            console.log(`\n=== ANALYZING WHOLESALE PRODUCT ${i + 1} ===`);
+            console.log('Wholesale Product:', productData.wholesaleProduct.title);
+            console.log('Amazon Results Count:', productData.amazonResults.length);
+            
+            const analysis = await wholesaleModule.analyzeProfitability(productData.wholesaleProduct, productData.amazonResults);
             
             // Replace amazonResults with only profitable results
             if (analysis.profitableResults && analysis.profitableResults.length > 0) {
-                wholesaleProductsWithResults[i].amazonResults = analysis.profitableResults;
+                productData.amazonResults = analysis.profitableResults;
             } else {
-                wholesaleProductsWithResults[i].amazonResults = [];
+                productData.amazonResults = [];
             }
-        }
+            
+            console.log(`=== END ANALYZING WHOLESALE PRODUCT ${i + 1} ===\n`);
+            
+            return { index: i, analysis: analysis, productData: productData };
+        });
+        
+        const analysisResultsArray = await Promise.all(analysisPromises);
+        
+        // Convert back to the expected format
+        const analysisResults = {};
+        analysisResultsArray.forEach(({ index, analysis, productData }) => {
+            analysisResults[index] = analysis;
+            wholesaleProductsWithResults[index] = productData;
+        });
+
+        // Calculate total page load time
+        const endTime = Date.now();
+        const totalLoadTime = ((endTime - startTime) / 1000).toFixed(2); // Convert to seconds with 2 decimal places
 
         res.render('wholesale-products-detail', {
             wholesale_id: wholesale_id,
@@ -1343,6 +1468,9 @@ app.get('/wholesale-products-by-id/:wholesale_id', authenticate, async (req, res
             wholesaleStartPage: wholesaleStartPage,
             wholesaleEndPage: wholesaleEndPage,
             wholesalePageUrl: `/wholesale-products-by-id/${wholesale_id}?page=`,
+            
+            // Page load time
+            totalLoadTime: totalLoadTime,
             
             page: 'wholesale_details'
         });

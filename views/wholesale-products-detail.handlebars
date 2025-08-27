@@ -5,13 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wholesale Products Detail</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        body {
+            background-color: #f8f9fa;
+        }
         .zoom {
             transition: transform .2s;
             cursor: pointer;
         }
         .zoom:hover {
-            transform: scale(6);
+            transform: scale(8);
             position: absolute;
             transform-origin: center center;
             z-index: 1000;
@@ -20,37 +24,178 @@
             border-radius: 4px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
+
+        /* Smart positioning for zoomed images to prevent overflow */
+        .zoom:hover {
+            /* Check if image would overflow right edge */
+            left: auto !important;
+            right: auto !important;
+        }
+
+        /* For images in the first column (left side) */
+        .col-md-2 .zoom:hover,
+        .col-3 .zoom:hover {
+            left: 0 !important;
+            transform-origin: left center;
+        }
+
+        /* For images in the last column (right side) */
+        .col-md-3 .zoom:hover {
+            right: 0 !important;
+            transform-origin: right center;
+        }
+
+        /* For images in middle columns, center them */
+        .col-md-7 .zoom:hover,
+        .col-9 .zoom:hover {
+            left: 50% !important;
+            transform: translateX(-50%) scale(6);
+            transform-origin: center center;
+        }
         .wholesale-thumbnail {
-            max-width: 80px;
-            max-height: 80px;
+            max-width: 120px;
+            max-height: 120px;
             object-fit: cover;
-            border-radius: 4px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
         }
         .amazon-thumbnail {
-            width: 30px;
-            height: 30px;
+            width: 60px;
+            height: 60px;
             object-fit: cover;
-            border-radius: 2px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
         }
-        .profitability-breakdown {
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 10px;
-            margin-top: 10px;
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
         }
-        .cost-breakdown {
+        .product-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+        }
+        .product-body {
+            padding: 20px;
+        }
+        .amazon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        /* When there are 2 or fewer Amazon results, show 2 per line */
+        .amazon-grid.few-results {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .amazon-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #28a745;
+            transition: transform 0.2s;
+        }
+        .amazon-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .price-highlight {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .profit-badge {
+            font-size: 0.8em;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        .status-approved {
+            color: #28a745;
+        }
+        .status-rejected {
+            color: #dc3545;
+        }
+        .status-warning {
+            color: #ffc107;
+        }
+        .product-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        .product-meta {
             font-size: 0.9em;
             color: #6c757d;
+        }
+        .search-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        /* Compact grid for products with no Amazon results */
+        .no-results-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .wholesale-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .wholesale-compact-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #ffc107;
+            transition: transform 0.2s;
+        }
+        
+        .wholesale-compact-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .wholesale-compact-item .wholesale-thumbnail {
+            max-width: 80px;
+            max-height: 80px;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
+    <div class="container-fluid mt-4">
         <div class="row">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Wholesale Batch: {{wholesale_id}}</h2>
-                    <a href="/wholesale-list" class="btn btn-secondary">← Back to List</a>
+                    <div>
+                        <h2><i class="fas fa-boxes me-2"></i>Wholesale Batch: {{wholesale_id}}</h2>
+                        {{#if totalLoadTime}}
+                            <div class="text-center mt-2">
+                                <span class="badge bg-info">
+                                    <i class="fas fa-clock me-1"></i>Total page load time: {{totalLoadTime}} seconds
+                                </span>
+                            </div>
+                        {{/if}}
+                    </div>
+                    <a href="/wholesale-list" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    </a>
                 </div>
 
                 {{#if message}}
@@ -58,213 +203,256 @@
                 {{/if}}
 
                 {{#if wholesaleProductsWithResults}}
-                    <div class="row">
-                        {{#each wholesaleProductsWithResults}}
-                            <div class="col-12 mb-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">Wholesale Product #{{inc @index}}</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            {{!-- Wholesale Product Image --}}
+                    {{!-- First: Show products with Amazon results --}}
+                    {{#each wholesaleProductsWithResults}}
+                        {{#if this.amazonResults.length}}
+                            <div class="product-card">
+                                {{!-- Wholesale Product Header --}}
+                                <div class="product-header">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
                                             {{#if this.wholesaleProduct.thumbnail}}
-                                                <div class="col-md-2">
-                                                    <img src="{{this.wholesaleProduct.thumbnail}}" 
-                                                         alt="Wholesale Product" 
-                                                         class="wholesale-thumbnail zoom"
-                                                         title="Click to enlarge">
+                                                <img src="{{this.wholesaleProduct.thumbnail}}" 
+                                                     alt="Wholesale Product" 
+                                                     class="wholesale-thumbnail zoom"
+                                                     title="Click to enlarge">
+                                            {{else}}
+                                                <div class="wholesale-thumbnail bg-light d-flex align-items-center justify-content-center">
+                                                    <i class="fas fa-image text-muted" style="font-size: 2em;"></i>
                                                 </div>
                                             {{/if}}
-                                            
-                                            {{!-- Product Details --}}
-                                            <div class="col-md-{{#if this.wholesaleProduct.thumbnail}}10{{else}}12{{/if}}">
+                                        </div>
+                                        <div class="col-md-7">
+                                            <h4 class="mb-2">{{this.wholesaleProduct.title}}</h4>
+                                            <div class="row">
+                                                {{#if this.wholesaleProduct.brand}}
+                                                    <div class="col-md-4">
+                                                        <small><i class="fas fa-tag me-1"></i><strong>Brand:</strong> {{this.wholesaleProduct.brand}}</small>
+                                                    </div>
+                                                {{/if}}
+                                                {{#if this.wholesaleProduct.size}}
+                                                    <div class="col-md-4">
+                                                        <small><i class="fas fa-ruler me-1"></i><strong>Size:</strong> {{this.wholesaleProduct.size}}</small>
+                                                    </div>
+                                                {{/if}}
+                                                {{#if this.wholesaleProduct.item}}
+                                                    <div class="col-md-4">
+                                                        <small><i class="fas fa-barcode me-1"></i><strong>SKU:</strong> {{this.wholesaleProduct.item}}</small>
+                                                    </div>
+                                                {{/if}}
+                                            </div>
+                                            {{#if this.wholesaleProduct.packSize}}
+                                                <small><i class="fas fa-box me-1"></i><strong>Pack:</strong> {{this.wholesaleProduct.packSize}}</small>
+                                            {{/if}}
+                                            {{#if this.wholesaleProduct.qty}}
+                                                <small class="ms-3"><i class="fas fa-layer-group me-1"></i><strong>Qty:</strong> {{this.wholesaleProduct.qty}}</small>
+                                            {{/if}}
+                                        </div>
+                                        <div class="col-md-3 text-end">
+                                            <div class="price-highlight">${{formatNumber this.wholesaleProduct.wholesaleCost 2}}</div>
+                                            <small>Wholesale Cost</small>
+                                            <div class="mt-2 d-flex flex-column gap-1">
+                                                {{#if this.wholesaleProduct.hyperlink}}
+                                                    <a href="{{this.wholesaleProduct.hyperlink}}" target="_blank" class="btn btn-sm btn-light">
+                                                        <i class="fas fa-external-link-alt me-1"></i>View Store
+                                                    </a>
+                                                {{/if}}
+                                                <button class="btn btn-sm btn-info" onclick="showJsonData('{{this.wholesaleProduct.id}}', {{json this.wholesaleProduct}})">
+                                                    <i class="fas fa-code me-1"></i>JSON Data
+                                                </button>
+                                                <button class="btn btn-sm btn-warning" onclick="showAmazonSearch('{{this.wholesaleProduct.id}}', '{{this.wholesaleProduct.title}}')">
+                                                    <i class="fas fa-search me-1"></i>Amazon Search
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{!-- Amazon Results Section --}}
+                                <div class="product-body">
+                                    <div class="amazon-grid {{#if (lte this.amazonResults.length 2)}}few-results{{/if}}">
+                                        {{#each this.amazonResults}}
+                                            <div class="amazon-item">
                                                 <div class="row">
-                                                    <div class="col-md-6">
-                                                        <h6 class="text-primary">{{this.wholesaleProduct.title}}</h6>
-                                                        {{#if this.wholesaleProduct.brand}}
-                                                            <p class="mb-1"><strong>Brand:</strong> {{this.wholesaleProduct.brand}}</p>
-                                                        {{/if}}
-                                                        {{#if this.wholesaleProduct.size}}
-                                                            <p class="mb-1"><strong>Size:</strong> {{this.wholesaleProduct.size}}</p>
-                                                        {{/if}}
-                                                        {{#if this.wholesaleProduct.item}}
-                                                            <p class="mb-1"><strong>Item/SKU:</strong> {{this.wholesaleProduct.item}}</p>
-                                                        {{/if}}
-                                                        {{#if this.wholesaleProduct.packSize}}
-                                                            <p class="mb-1"><strong>Pack Size:</strong> {{this.wholesaleProduct.packSize}}</p>
-                                                        {{/if}}
-                                                        {{#if this.wholesaleProduct.qty}}
-                                                            <p class="mb-1"><strong>Quantity:</strong> {{this.wholesaleProduct.qty}}</p>
+                                                    <div class="col-3">
+                                                        {{#if this.thumbnail}}
+                                                            <img src="{{this.thumbnail}}" 
+                                                                 alt="Amazon Product" 
+                                                                 class="amazon-thumbnail zoom"
+                                                                 title="Hover to enlarge">
+                                                        {{else}}
+                                                            <div class="amazon-thumbnail bg-light d-flex align-items-center justify-content-center">
+                                                                <i class="fas fa-image text-muted"></i>
+                                                            </div>
                                                         {{/if}}
                                                     </div>
-                                                    <div class="col-md-6">
-                                                        <div class="text-end">
-                                                            <h4 class="text-success mb-2">${{this.wholesaleProduct.wholesaleCost}}</h4>
-                                                            {{#if this.wholesaleProduct.hyperlink}}
-                                                                <a href="{{this.wholesaleProduct.hyperlink}}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                                                    <i class="fas fa-external-link-alt"></i> View at Store
-                                                                </a>
+                                                    <div class="col-9">
+                                                        <div class="product-title">{{this.title}}</div>
+                                                        <div class="product-meta">
+                                                            {{#if this.brand}}
+                                                                <div><i class="fas fa-tag me-1"></i>{{this.brand}}</div>
+                                                            {{/if}}
+                                                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                                                <span class="price-highlight">
+                                                                    {{#if this.analysis}}
+                                                                        {{#if this.analysis.price}}
+                                                                            ${{formatNumber this.analysis.price 2}}
+                                                                        {{else}}
+                                                                            <span class="text-muted">Price not available</span>
+                                                                        {{/if}}
+                                                                    {{else}}
+                                                                        {{#if this.price}}
+                                                                            {{#if (eq this.price "No Amazon results found for this product.")}}
+                                                                                <span class="text-muted">Price not available</span>
+                                                                            {{else}}
+                                                                                {{#if (lookup this 'extracted_price')}}
+                                                                                    ${{formatNumber this.extracted_price 2}}
+                                                                                {{else if (lookup this 'more_offers')}}
+                                                                                    {{#if this.more_offers.extracted_lowest_price}}
+                                                                                        ${{formatNumber this.more_offers.extracted_lowest_price 2}}
+                                                                                    {{else if this.more_offers.lowest_price}}
+                                                                                        {{this.more_offers.lowest_price}}
+                                                                                    {{else}}
+                                                                                        {{this.price}}
+                                                                                    {{/if}}
+                                                                                {{else}}
+                                                                                    {{this.price}}
+                                                                                {{/if}}
+                                                                            {{/if}}
+                                                                        {{else}}
+                                                                            <span class="text-muted">Price not available</span>
+                                                                        {{/if}}
+                                                                    {{/if}}
+                                                                </span>
+                                                                {{#if this.analysis}}
+                                                                    <div class="d-flex flex-column gap-1">
+                                                                        <span class="profit-badge bg-{{#if (gt this.analysis.profit 0)}}success{{else}}danger{{/if}} text-white">
+                                                                            {{#if this.analysis.profit}}
+                                                                                ${{formatNumber this.analysis.profit 2}} profit
+                                                                            {{else}}
+                                                                                No profit data
+                                                                            {{/if}}
+                                                                        </span>
+                                                                        {{#if this.analysis.geminiMatch}}
+                                                                            <span class="badge bg-success text-white gemini-match-badge" style="font-size: 0.7em;" 
+                                                                                  data-bs-toggle="tooltip" 
+                                                                                  data-bs-html="true"
+                                                                                  title="<strong>AI Analysis:</strong><br>Match: ✅ Yes<br>Confidence: {{this.analysis.geminiConfidence}}<br>Brand Match: {{#if this.analysis.brandMatch}}✅{{else}}❌{{/if}}<br>Title Similarity: {{this.analysis.titleSimilarity}}<br>Reason: {{this.analysis.geminiReason}}">
+                                                                                  <i class="fas fa-robot me-1"></i>AI Match ({{this.analysis.geminiConfidence}})
+                                                                            </span>
+                                                                        {{else}}
+                                                                            <span class="badge bg-warning text-dark gemini-match-badge" style="font-size: 0.7em;"
+                                                                                  data-bs-toggle="tooltip" 
+                                                                                  data-bs-html="true"
+                                                                                  title="<strong>AI Analysis:</strong><br>Match: ❌ No<br>Confidence: {{this.analysis.geminiConfidence}}<br>Brand Match: {{#if this.analysis.brandMatch}}✅{{else}}❌{{/if}}<br>Title Similarity: {{this.analysis.titleSimilarity}}<br>Reason: {{this.analysis.geminiReason}}">
+                                                                                  <i class="fas fa-exclamation-triangle me-1"></i>No Match
+                                                                            </span>
+                                                                        {{/if}}
+                                                                    </div>
+                                                                {{/if}}
+                                                            </div>
+                                                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                                                {{#if this.rating}}
+                                                                    <small><i class="fas fa-star text-warning me-1"></i>{{this.rating}}</small>
+                                                                {{/if}}
+                                                                {{#if this.reviews}}
+                                                                    <small><i class="fas fa-comments me-1"></i>{{this.reviews}} reviews</small>
+                                                                {{/if}}
+                                                                {{#if this.seller}}
+                                                                    <small><i class="fas fa-store me-1"></i>{{this.seller}}</small>
+                                                                {{/if}}
+                                                            </div>
+                                                            {{#if this.link}}
+                                                                <div class="mt-2">
+                                                                    <a href="{{this.link}}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                                        <i class="fas fa-external-link-alt me-1"></i>View on Amazon
+                                                                    </a>
+                                                                </div>
                                                             {{/if}}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        {{!-- Profitability Analysis --}}
-                                        {{#with (lookup ../analysisResults @index)}}
-                                            {{#if this.status}}
-                                                <div class="mt-3 p-3 bg-light rounded">
-                                                    <h6 class="text-muted mb-2">Profitability Analysis</h6>
-                                                    {{#if this.profitability}}
-                                                        <div class="profitability-breakdown">
-                                                            <div class="row">
-                                                                <div class="col-md-3">
-                                                                    <strong>Best Amazon Price:</strong><br>
-                                                                    <span class="text-primary">${{this.profitability.price}}</span>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <strong>Potential Profit:</strong><br>
-                                                                    <span class="text-{{#if (gt this.profitability.profit 0)}}success{{else}}danger{{/if}}">
-                                                                        ${{this.profitability.profit}}
-                                                                    </span>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <strong>Profit Margin:</strong><br>
-                                                                    <span class="text-{{#if (gt this.profitability.margin 20)}}success{{else if (gt this.profitability.margin 0)}}warning{{else}}danger{{/if}}">
-                                                                        {{this.profitability.margin}}%
-                                                                    </span>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <strong>Status:</strong><br>
-                                                                    <span class="badge bg-{{#if (eq this.profitability.status 'high_profit')}}success{{else if (eq this.profitability.status 'good_profit')}}warning{{else if (eq this.profitability.status 'low_profit')}}info{{else}}danger{{/if}}">
-                                                                        {{this.profitability.status}}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            {{!-- Cost Breakdown --}}
-                                                            <div class="cost-breakdown mt-2">
-                                                                <strong>Cost Breakdown:</strong><br>
-                                                                • Wholesale Cost: ${{../this.wholesaleProduct.wholesaleCost}}<br>
-                                                                • Shipping: $6.00<br>
-                                                                • Amazon Fee (15%): ${{this.profitability.amazonFee}}<br>
-                                                                • Minimum Profit: $2.00<br>
-                                                                • <strong>Total Costs: ${{this.profitability.totalCosts}}</strong><br>
-                                                                • <strong>Minimum Required Price: ${{this.profitability.minimumRequiredPrice}}</strong>
-                                                            </div>
-                                                        </div>
-                                                        {{#if this.recommendations}}
-                                                            <div class="mt-2">
-                                                                <strong>Recommendations:</strong>
-                                                                <ul class="mb-0">
-                                                                    {{#each this.recommendations}}
-                                                                        <li>{{this}}</li>
-                                                                    {{/each}}
-                                                                </ul>
-                                                            </div>
-                                                        {{/if}}
-                                                    {{else}}
-                                                        <p class="text-muted mb-0">{{this.message}}</p>
-                                                    {{/if}}
-                                                </div>
-                                            {{/if}}
-                                        {{/with}}
-
-                                        {{!-- Amazon Results for this specific product --}}
-                                        {{#if this.amazonResults}}
-                                            <div class="mt-3">
-                                                <h6 class="text-muted mb-2">Amazon Search Results for "{{this.wholesaleProduct.title}}"</h6>
-                                                <p class="text-info mb-2"><small><strong>Search Query:</strong> "{{this.searchQuery}}"</small></p>
-                                                <p class="text-success mb-2"><small><strong>✅ Showing {{this.amazonResults.length}} profitable results (filtered from total results)</strong></small></p>
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm table-striped">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Image</th>
-                                                                <th>Title</th>
-                                                                <th>Brand</th>
-                                                                <th>Price</th>
-                                                                <th>Profit</th>
-                                                                <th>Rating</th>
-                                                                <th>Reviews</th>
-                                                                <th>Seller</th>
-                                                                <th>Actions</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {{#each this.amazonResults}}
-                                                                <tr>
-                                                                    <td>
-                                                                        {{#if this.thumbnail}}
-                                                                            <img src="{{this.thumbnail}}" 
-                                                                                 alt="Product" 
-                                                                                 class="amazon-thumbnail zoom"
-                                                                                 title="Hover to enlarge">
-                                                                        {{else}}
-                                                                            <span class="text-muted">-</span>
-                                                                        {{/if}}
-                                                                    </td>
-                                                                    <td><small>{{this.title}}</small></td>
-                                                                    <td><small>{{this.brand}}</small></td>
-                                                                    <td><strong>${{this.price}}</strong></td>
-                                                                    <td>
-                                                                        {{#if this.analysis}}
-                                                                            <span class="text-{{#if (gt this.analysis.profit 0)}}success{{else}}danger{{/if}}">
-                                                                                ${{this.analysis.profit}}
-                                                                            </span>
-                                                                        {{else}}
-                                                                            <span class="text-muted">-</span>
-                                                                        {{/if}}
-                                                                    </td>
-                                                                    <td>
-                                                                        {{#if this.rating}}
-                                                                            <span class="text-warning">★</span> {{this.rating}}
-                                                                        {{else}}
-                                                                            <span class="text-muted">-</span>
-                                                                        {{/if}}
-                                                                    </td>
-                                                                    <td>
-                                                                        {{#if this.reviews}}
-                                                                            <small>{{this.reviews}}</small>
-                                                                        {{else}}
-                                                                            <span class="text-muted">-</span>
-                                                                        {{/if}}
-                                                                    </td>
-                                                                    <td><small>{{this.seller}}</small></td>
-                                                                    <td>
-                                                                        {{#if this.link}}
-                                                                            <a href="{{this.link}}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
-                                                                        {{/if}}
-                                                                    </td>
-                                                                </tr>
-                                                            {{/each}}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        {{else}}
-                                            <div class="mt-3">
-                                                <div class="alert alert-warning">
-                                                    <strong>No Profitable Amazon Results Found</strong><br>
-                                                    <small>All Amazon search results were below the minimum profitable price requirements.</small>
-                                                </div>
-                                            </div>
-                                        {{/if}}
+                                        {{/each}}
                                     </div>
                                 </div>
                             </div>
-                        {{/each}}
+                        {{/if}}
+                    {{/each}}
+
+                    {{!-- Second: Show products with NO Amazon results in a compact grid --}}
+                    <div class="no-results-section">
+                        <h4 class="mb-3"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Products with No Amazon Results</h4>
+                        <div class="wholesale-grid">
+                            {{#each wholesaleProductsWithResults}}
+                                {{#unless this.amazonResults.length}}
+                                    <div class="wholesale-compact-item">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-2">
+                                                {{#if this.wholesaleProduct.thumbnail}}
+                                                    <img src="{{this.wholesaleProduct.thumbnail}}" 
+                                                         alt="Wholesale Product" 
+                                                         class="wholesale-thumbnail zoom"
+                                                         title="Click to enlarge">
+                                                {{else}}
+                                                    <div class="wholesale-thumbnail bg-light d-flex align-items-center justify-content-center">
+                                                        <i class="fas fa-image text-muted" style="font-size: 2em;"></i>
+                                                    </div>
+                                                {{/if}}
+                                            </div>
+                                            <div class="col-md-7">
+                                                <h5 class="mb-1">{{this.wholesaleProduct.title}}</h5>
+                                                <div class="row">
+                                                    {{#if this.wholesaleProduct.brand}}
+                                                        <div class="col-md-4">
+                                                            <small><i class="fas fa-tag me-1"></i><strong>Brand:</strong> {{this.wholesaleProduct.brand}}</small>
+                                                        </div>
+                                                    {{/if}}
+                                                    {{#if this.wholesaleProduct.size}}
+                                                        <div class="col-md-4">
+                                                            <small><i class="fas fa-ruler me-1"></i><strong>Size:</strong> {{this.wholesaleProduct.size}}</small>
+                                                        </div>
+                                                    {{/if}}
+                                                    {{#if this.wholesaleProduct.item}}
+                                                        <div class="col-md-4">
+                                                            <small><i class="fas fa-barcode me-1"></i><strong>SKU:</strong> {{this.wholesaleProduct.item}}</small>
+                                                        </div>
+                                                    {{/if}}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 text-end">
+                                                <div class="price-highlight">${{formatNumber this.wholesaleProduct.wholesaleCost 2}}</div>
+                                                <small>Wholesale Cost</small>
+                                                <div class="mt-2 d-flex flex-column gap-1">
+                                                    {{#if this.wholesaleProduct.hyperlink}}
+                                                        <a href="{{this.wholesaleProduct.hyperlink}}" target="_blank" class="btn btn-sm btn-light">
+                                                            <i class="fas fa-external-link-alt me-1"></i>View Store
+                                                        </a>
+                                                    {{/if}}
+                                                    <button class="btn btn-sm btn-info" onclick="showJsonData('{{this.wholesaleProduct.id}}', {{json this.wholesaleProduct}})">
+                                                        <i class="fas fa-code me-1"></i>JSON Data
+                                                    </button>
+                                                    <button class="btn btn-sm btn-warning" onclick="showAmazonSearch('{{this.wholesaleProduct.id}}', '{{this.wholesaleProduct.title}}')">
+                                                        <i class="fas fa-search me-1"></i>Amazon Search
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {{/unless}}
+                            {{/each}}
+                        </div>
                     </div>
 
                     {{!-- Pagination --}}
                     {{#if (gt wholesaleTotalPages 1)}}
-                        <nav aria-label="Wholesale products pagination">
+                        <nav aria-label="Wholesale products pagination" class="mt-4">
                             <ul class="pagination justify-content-center">
                                 {{#if (gt wholesaleCurrentPage 1)}}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}">Previous</a>
+                                        <a class="page-link" href="{{wholesalePageUrl}}{{dec wholesaleCurrentPage}}">
+                                            <i class="fas fa-chevron-left"></i> Previous
+                                        </a>
                                     </li>
                                 {{/if}}
                                 
@@ -276,7 +464,9 @@
                                 
                                 {{#if (lt wholesaleCurrentPage wholesaleTotalPages)}}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{wholesalePageUrl}}{{inc wholesaleCurrentPage}}">Next</a>
+                                        <a class="page-link" href="{{wholesalePageUrl}}{{inc wholesaleCurrentPage}}">
+                                            Next <i class="fas fa-chevron-right"></i>
+                                        </a>
                                     </li>
                                 {{/if}}
                             </ul>
@@ -284,6 +474,7 @@
                     {{/if}}
                 {{else}}
                     <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
                         No wholesale products found for this batch.
                     </div>
                 {{/if}}
@@ -292,5 +483,126 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize Bootstrap tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl, {
+                    html: true,
+                    placement: 'top'
+                });
+            });
+        });
+
+        // Function to show JSON data in a modal
+        function showJsonData(productId, jsonData) {
+            const modal = new bootstrap.Modal(document.getElementById('jsonModal'));
+            document.getElementById('jsonModalTitle').textContent = `JSON Data - Product ID: ${productId}`;
+            document.getElementById('jsonModalBody').textContent = JSON.stringify(jsonData, null, 2);
+            modal.show();
+        }
+
+        // Function to show Amazon search link
+        function showAmazonSearch(productId, productTitle) {
+            const searchQuery = encodeURIComponent(productTitle);
+            const amazonSearchUrl = `https://www.amazon.com/s?k=${searchQuery}`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('amazonSearchModal'));
+            document.getElementById('amazonSearchModalTitle').textContent = `Amazon Search - Product ID: ${productId}`;
+            document.getElementById('amazonSearchUrl').href = amazonSearchUrl;
+            document.getElementById('amazonSearchUrl').textContent = amazonSearchUrl;
+            modal.show();
+        }
+    </script>
+
+    <!-- JSON Data Modal -->
+    <div class="modal fade" id="jsonModal" tabindex="-1" aria-labelledby="jsonModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="jsonModalTitle">JSON Data</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="jsonModalBody" style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="copyToClipboard('jsonModalBody')">
+                        <i class="fas fa-copy me-1"></i>Copy JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Amazon Search Modal -->
+    <div class="modal fade" id="amazonSearchModal" tabindex="-1" aria-labelledby="amazonSearchModalTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="amazonSearchModalTitle">Amazon Search Link</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Search Query:</strong> <span id="amazonSearchQuery"></span></p>
+                    <p><strong>Amazon Search URL:</strong></p>
+                    <a id="amazonSearchUrl" href="#" target="_blank" class="text-break"></a>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-warning" onclick="copyToClipboard('amazonSearchUrl')">
+                        <i class="fas fa-copy me-1"></i>Copy URL
+                    </button>
+                    <a id="amazonSearchUrlBtn" href="#" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt me-1"></i>Open in Amazon
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to copy text to clipboard
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent || element.href;
+            
+            navigator.clipboard.writeText(text).then(function() {
+                // Show a temporary success message
+                const originalText = event.target.innerHTML;
+                event.target.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+                event.target.classList.remove('btn-primary', 'btn-warning');
+                event.target.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    event.target.innerHTML = originalText;
+                    event.target.classList.remove('btn-success');
+                    if (originalText.includes('Copy JSON')) {
+                        event.target.classList.add('btn-primary');
+                    } else {
+                        event.target.classList.add('btn-warning');
+                    }
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        // Update Amazon search modal with query
+        function showAmazonSearch(productId, productTitle) {
+            const searchQuery = encodeURIComponent(productTitle);
+            const amazonSearchUrl = `https://www.amazon.com/s?k=${searchQuery}`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('amazonSearchModal'));
+            document.getElementById('amazonSearchModalTitle').textContent = `Amazon Search - Product ID: ${productId}`;
+            document.getElementById('amazonSearchQuery').textContent = productTitle;
+            document.getElementById('amazonSearchUrl').href = amazonSearchUrl;
+            document.getElementById('amazonSearchUrl').textContent = amazonSearchUrl;
+            document.getElementById('amazonSearchUrlBtn').href = amazonSearchUrl;
+            modal.show();
+        }
+    </script>
 </body>
 </html>

@@ -190,6 +190,231 @@ O motivo deve ser objetivo e máximo 2 palavras.`;
     }
 }
 
-module.exports = { analyzeProduct, analyzeTitles };
+async function analyzeWholesaleAmazonMatch(wholesaleProduct, amazonResult) {
+    try {
+        const wholesaleTitle = wholesaleProduct.title || '';
+        let wholesaleBrand = wholesaleProduct.brand || '';
+        const amazonTitle = amazonResult.title || '';
+        const amazonBrand = amazonResult.brand || '';
+        const position = amazonResult.position || 'Unknown';
+
+        // Extract brand from wholesale title if brand field is empty
+        if (!wholesaleBrand && wholesaleTitle) {
+            // Common pattern: "Brand Name Product Description"
+            const titleWords = wholesaleTitle.split(' ');
+            if (titleWords.length >= 2) {
+                // Try to extract brand from the beginning of the title
+                // Look for common brand patterns
+                const potentialBrand = titleWords.slice(0, 3).join(' '); // Take first 3 words
+                wholesaleBrand = potentialBrand;
+            }
+        }
+
+        // Debug logging with position
+        console.log(`\n=== AI ANALYSIS FOR POSITION ${position} ===`);
+        console.log('Position:', position);
+        console.log('Wholesale Title:', wholesaleTitle);
+        console.log('Wholesale Brand (extracted):', wholesaleBrand);
+        console.log('Amazon Title:', amazonTitle);
+        console.log('Amazon Brand:', amazonBrand);
+        console.log('Amazon ASIN:', amazonResult.asin || 'N/A');
+        console.log('Amazon Price:', amazonResult.price || amazonResult.extracted_price || 'N/A');
+        console.log('=== END POSITION ANALYSIS ===\n');
+
+        // Debug: Log the exact prompt being sent to Gemini
+        console.log(`\n=== GEMINI PROMPT FOR POSITION ${position} ===`);
+        console.log('Wholesale Title:', wholesaleTitle);
+        console.log('Wholesale Brand:', wholesaleBrand);
+        console.log('Amazon Title:', amazonTitle);
+        console.log('Amazon Brand:', amazonBrand);
+        console.log('=== END GEMINI PROMPT ===\n');
+
+        const prompt = `Compare these two product listings to determine if they are the same product:
+
+WHOLESALE PRODUCT:
+- Title: "${wholesaleTitle}"
+- Brand: "${wholesaleBrand}"
+
+AMAZON PRODUCT:
+- Title: "${amazonTitle}"
+- Brand: "${amazonBrand}"
+
+ANALYSIS RULES:
+
+APPROVE ONLY if:
+- Same brand (or brand is missing from one but present in the other)
+- Same core product (same model, type, variant)
+- Minor differences in packaging, size, or description are acceptable
+- Product is essentially the same item
+- Brand names that are similar or variations of each other (e.g., "Cinnamon Toast Crunch" vs "Cinnamon Toast Crunch")
+
+REJECT if:
+- Different brands (when both brands are clearly specified and different)
+- Different product types/models
+- Completely different products
+- Major differences in product specifications
+
+Consider:
+- Brand matching (case-insensitive)
+- Product type matching
+- Size/quantity variations are usually acceptable
+- Packaging differences are usually acceptable
+- Brand variations and abbreviations
+
+IMPORTANT: For the example above:
+- Wholesale: "Cinnamon Toast Crunch French, Breakfast Cereal, 18.1 oz" (Brand: "Cinnamon Toast Crunch")
+- Amazon: "French, Breakfast Cereal, 18.1 oz" (Brand: "Cinnamon Toast Crunch")
+- These should MATCH because they have the same brand and same product type
+
+Respond with JSON format only:
+{
+  "match": true/false,
+  "confidence": "high/medium/low",
+  "reason": "brief explanation",
+  "brand_match": true/false,
+  "title_similarity": "high/medium/low"
+}`;
+
+        // Debug: Log the complete prompt being sent to Gemini
+        console.log(`\n=== COMPLETE GEMINI PROMPT FOR POSITION ${position} ===`);
+        console.log(prompt);
+        console.log('=== END COMPLETE PROMPT ===\n');
+
+        const API_KEY = process.env.GOOGLE_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+
+        const requestData = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: prompt
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 500,
+                topP: 0.95,
+                topK: 40,
+                responseMimeType: 'application/json'
+            }
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Gemini API request failed with status ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        const resultText = data.candidates[0].content.parts[0].text.trim();
+        
+        console.log(`\n=== AI RESPONSE FOR POSITION ${position} ===`);
+        console.log('Gemini Raw Result:', resultText);
+        
+        // Parse JSON response
+        let analysisResult;
+        try {
+            analysisResult = JSON.parse(resultText);
+            console.log('Parsed Analysis Result:', JSON.stringify(analysisResult, null, 2));
+        } catch (parseError) {
+            console.error('Failed to parse Gemini JSON response:', parseError);
+            // Fallback to basic analysis
+            analysisResult = {
+                match: false,
+                confidence: "low",
+                reason: "Failed to parse analysis",
+                brand_match: false,
+                title_similarity: "low"
+            };
+        }
+
+        // Fallback analysis for cases where Gemini might be too strict
+        let finalMatch = analysisResult.match || false;
+        let finalConfidence = analysisResult.confidence || "low";
+        
+        // If Gemini says no match, but brands are clearly the same, do a manual check
+        if (!finalMatch && wholesaleBrand && amazonBrand) {
+            const wholesaleBrandLower = wholesaleBrand.toLowerCase().trim();
+            const amazonBrandLower = amazonBrand.toLowerCase().trim();
+            
+            if (wholesaleBrandLower === amazonBrandLower) {
+                // Brands match exactly, check if product types are similar
+                const wholesaleWords = wholesaleTitle.toLowerCase().split(' ');
+                const amazonWords = amazonTitle.toLowerCase().split(' ');
+                
+                // Check for common product keywords
+                const commonKeywords = ['cereal', 'breakfast', 'toast', 'crunch', 'french'];
+                const wholesaleHasKeywords = commonKeywords.some(keyword => 
+                    wholesaleWords.some(word => word.includes(keyword))
+                );
+                const amazonHasKeywords = commonKeywords.some(keyword => 
+                    amazonWords.some(word => word.includes(keyword))
+                );
+                
+                if (wholesaleHasKeywords && amazonHasKeywords) {
+                    finalMatch = true;
+                    finalConfidence = "high";
+                    console.log(`=== FALLBACK MATCH DETECTED FOR POSITION ${position} ===`);
+                    console.log('Brands match and product keywords found in both titles');
+                    console.log('Wholesale Brand:', wholesaleBrand);
+                    console.log('Amazon Brand:', amazonBrand);
+                    console.log('Common Keywords Found:', commonKeywords.filter(keyword => 
+                        wholesaleWords.some(word => word.includes(keyword)) && 
+                        amazonWords.some(word => word.includes(keyword))
+                    ));
+                }
+            }
+        }
+
+        const finalResult = {
+            isMatch: finalMatch,
+            confidence: finalConfidence,
+            reason: analysisResult.reason || "Analysis completed",
+            brandMatch: analysisResult.brand_match || false,
+            titleSimilarity: analysisResult.title_similarity || "low",
+            wholesaleTitle: wholesaleTitle,
+            amazonTitle: amazonTitle,
+            wholesaleBrand: wholesaleBrand,
+            amazonBrand: amazonBrand
+        };
+
+        console.log(`\n=== FINAL RESULT FOR POSITION ${position} ===`);
+        console.log('Match:', finalResult.isMatch ? '✅ YES' : '❌ NO');
+        console.log('Confidence:', finalResult.confidence);
+        console.log('Reason:', finalResult.reason);
+        console.log('Brand Match:', finalResult.brandMatch ? '✅ YES' : '❌ NO');
+        console.log('Title Similarity:', finalResult.titleSimilarity);
+        console.log('=== END FINAL RESULT ===\n');
+
+        return finalResult;
+
+    } catch (error) {
+        console.error("Error analyzing wholesale-Amazon match with Gemini:", error);
+        return {
+            isMatch: false,
+            confidence: "low",
+            reason: "Error in analysis",
+            brandMatch: false,
+            titleSimilarity: "low",
+            wholesaleTitle: wholesaleProduct.title || '',
+            amazonTitle: amazonResult.title || '',
+            wholesaleBrand: wholesaleProduct.brand || '',
+            amazonBrand: amazonResult.brand || ''
+        };
+    }
+}
+
+module.exports = { analyzeProduct, analyzeTitles, analyzeWholesaleAmazonMatch };
 
 

@@ -4,6 +4,7 @@ const axios = require("axios");
 const db = require('./database'); // This exports { sequelize, Sequelize }
 const { Op } = require('sequelize'); // If you need Sequelize operators
 const dotenv = require('dotenv');
+const { analyzeWholesaleAmazonMatch } = require('./geminiAnalysis');
 dotenv.config(); // Load environment variables
 
 // --- Define your database models here ---
@@ -116,11 +117,50 @@ async function searchAmazonProduct(brand, title) {
             // Return ALL results, not just 5
             const resultsToCapture = response.data.organic_results; 
             
-            const formattedResults = resultsToCapture.map(result => {
-                // Correctly extract brand from attributes, falling back to passed brand
-                const extractedBrand = result.attributes?.find(attr => attr.name === 'Brand')?.value || brand;
+            console.log('=== AMAZON API RAW RESULTS ===');
+            console.log('Number of results:', resultsToCapture.length);
+            resultsToCapture.forEach((result, index) => {
+                console.log(`Result ${index + 1}:`, {
+                    position: result.position,
+                    asin: result.asin,
+                    title: result.title,
+                    brand: result.attributes?.find(attr => attr.name === 'Brand')?.value
+                });
+            });
+            console.log('=== END AMAZON API RAW RESULTS ===');
+            
+            const formattedResults = resultsToCapture.map((result, index) => {
+                // Enhanced brand extraction - try multiple sources
+                let extractedBrand = null;
+                
+                // Try different brand sources in order of preference
+                if (result.attributes && Array.isArray(result.attributes)) {
+                    const brandAttr = result.attributes.find(attr => attr.name === 'Brand');
+                    if (brandAttr && brandAttr.value) {
+                        extractedBrand = brandAttr.value;
+                    }
+                }
+                
+                // If no brand in attributes, try other possible fields
+                if (!extractedBrand && result.brand) {
+                    extractedBrand = result.brand;
+                }
+                
+                // Fallback to passed brand if still no brand found
+                if (!extractedBrand) {
+                    extractedBrand = brand;
+                }
+                
+                // Add debug logging for brand extraction
+                console.log(`Brand extraction for position ${result.position || (index + 1)}:`, {
+                    attributes: result.attributes,
+                    brandField: result.brand,
+                    extractedBrand: extractedBrand,
+                    fallbackBrand: brand
+                });
                 
                 return {
+                    position: result.position || (index + 1), // Use position from API or fallback to index + 1
                     asin: result.asin || null,
                     title: result.title || null,
                     link: result.link || null,
@@ -128,12 +168,22 @@ async function searchAmazonProduct(brand, title) {
                     reviews: result.reviews || null,
                     brand: extractedBrand,
                     price: result.price || null,
+                    extracted_price: result.extracted_price || null,
                     seller: result.seller || null,
                     thumbnail: result.thumbnail || null,
                     recent_sales: result.recent_sales || null,
+                    more_offers: result.more_offers || null, // Include more_offers data
+                    // Include raw data for debugging
+                    raw_attributes: result.attributes,
+                    raw_brand: result.brand
                 };
             });
             console.log(`searchAmazonProduct found ${formattedResults.length} results.`);
+            console.log('=== FORMATTED RESULTS WITH POSITIONS ===');
+            formattedResults.forEach(result => {
+                console.log(`Position ${result.position} (ASIN: ${result.asin || 'N/A'}): ${result.title}`);
+            });
+            console.log('=== END FORMATTED RESULTS ===');
             return formattedResults;
         } else {
             console.log(`No Amazon organic results found for query: "${params.q}"`);
@@ -193,7 +243,7 @@ async function processWholesaleProductsForAmazon(wholesaleProducts) {
  * @param {Array} amazonResults - Array of Amazon search results
  * @returns {object} - Analysis results with profitability metrics
  */
-function analyzeProfitability(wholesaleProduct, amazonResults) {
+async function analyzeProfitability(wholesaleProduct, amazonResults) {
     if (!amazonResults || amazonResults.length === 0) {
         return {
             status: 'no_results',
@@ -223,10 +273,89 @@ function analyzeProfitability(wholesaleProduct, amazonResults) {
     const profitableResults = [];
     const unprofitableResults = [];
 
-    amazonResults.forEach(result => {
-        const amazonPrice = extractPrice(result.price);
-        if (!amazonPrice || result.title === "No Amazon results found for this product.") {
-            return;
+    // Process each Amazon result with Gemini AI analysis in PARALLEL
+    console.log(`Starting parallel Gemini AI analysis for ${amazonResults.length} Amazon results...`);
+    
+    const analysisPromises = amazonResults.map(async (result) => {
+        // Debug: Log the exact data being sent to Gemini
+        console.log(`\n=== DETAILED DATA FOR POSITION ${result.position} ===`);
+        console.log('Wholesale Product Data:', {
+            title: wholesaleProduct.title,
+            brand: wholesaleProduct.brand,
+            wholesaleCost: wholesaleProduct.wholesaleCost
+        });
+        console.log('Amazon Result Data:', {
+            position: result.position,
+            asin: result.asin,
+            title: result.title,
+            brand: result.brand,
+            price: result.price,
+            extracted_price: result.extracted_price,
+            more_offers: result.more_offers,
+            raw_attributes: result.raw_attributes,
+            raw_brand: result.raw_brand
+        });
+        console.log('=== END DETAILED DATA ===\n');
+        
+        // Perform Gemini AI analysis FIRST to check if products match
+        console.log(`\n--- Analyzing match for Amazon result: "${result.title}" ---`);
+        const geminiAnalysis = await analyzeWholesaleAmazonMatch(wholesaleProduct, result);
+        console.log('Gemini Analysis Result:', JSON.stringify(geminiAnalysis, null, 2));
+        
+        return { result, geminiAnalysis };
+    });
+    
+    const analysisResults = await Promise.all(analysisPromises);
+    
+    // Process each analysis result
+    for (const { result, geminiAnalysis } of analysisResults) {
+        // Extract price from various possible formats
+        let amazonPrice = null;
+        
+        // Debug price extraction
+        console.log(`\n=== PRICE EXTRACTION FOR POSITION ${result.position} ===`);
+        console.log('result.extracted_price:', result.extracted_price);
+        console.log('result.more_offers:', result.more_offers);
+        console.log('result.more_offers?.extracted_lowest_price:', result.more_offers?.extracted_lowest_price);
+        console.log('result.price:', result.price);
+        
+        // Try different price sources in order of preference
+        if (result.extracted_price) {
+            amazonPrice = parseFloat(result.extracted_price);
+            console.log('Using extracted_price:', amazonPrice);
+        } else if (result.more_offers && result.more_offers.extracted_lowest_price) {
+            amazonPrice = parseFloat(result.more_offers.extracted_lowest_price);
+            console.log('Using more_offers.extracted_lowest_price:', amazonPrice);
+        } else if (result.price) {
+            amazonPrice = extractPrice(result.price);
+            console.log('Using extracted price from result.price:', amazonPrice);
+        }
+        
+        console.log('Final amazonPrice:', amazonPrice);
+        console.log('=== END PRICE EXTRACTION ===\n');
+        
+        // If no valid price, still include in unprofitable results with Gemini analysis
+        if (!amazonPrice || isNaN(amazonPrice) || result.title === "No Amazon results found for this product.") {
+            const analysis = {
+                price: null,
+                profit: null,
+                margin: null,
+                amazonFee: null,
+                totalCosts: null,
+                minimumRequiredPrice: null,
+                geminiMatch: geminiAnalysis.isMatch,
+                geminiConfidence: geminiAnalysis.confidence,
+                geminiReason: geminiAnalysis.reason,
+                brandMatch: geminiAnalysis.brandMatch,
+                titleSimilarity: geminiAnalysis.titleSimilarity,
+                status: 'no_price_matched' // Special status for matched products without price
+            };
+            
+            unprofitableResults.push({
+                ...result,
+                analysis: analysis
+            });
+            continue;
         }
 
         // Calculate costs and minimum required price
@@ -234,44 +363,59 @@ function analyzeProfitability(wholesaleProduct, amazonResults) {
         const totalCosts = wholesaleCost + shipping + amazonFee + minimumProfit;
         const actualProfit = amazonPrice - totalCosts;
 
-        // Only include results that meet minimum profit requirements
-        if (amazonPrice >= totalCosts) {
-            const margin = wholesaleCost > 0 ? (actualProfit / wholesaleCost) * 100 : 0;
-            
-            let status = 'low_profit';
-            if (actualProfit >= 5 && margin >= 50) {
-                status = 'high_profit';
-            } else if (actualProfit >= 3 && margin >= 30) {
-                status = 'good_profit';
-            }
+        // Create analysis object with both profitability and Gemini match data
+        const analysis = {
+            price: amazonPrice,
+            profit: actualProfit,
+            margin: wholesaleCost > 0 ? (actualProfit / wholesaleCost) * 100 : 0,
+            amazonFee: amazonFee,
+            totalCosts: totalCosts,
+            minimumRequiredPrice: totalCosts,
+            geminiMatch: geminiAnalysis.isMatch,
+            geminiConfidence: geminiAnalysis.confidence,
+            geminiReason: geminiAnalysis.reason,
+            brandMatch: geminiAnalysis.brandMatch,
+            titleSimilarity: geminiAnalysis.titleSimilarity
+        };
 
+        // Determine status based on profit and Gemini match
+        let status = 'low_profit';
+        if (actualProfit >= 5 && analysis.margin >= 50) {
+            status = 'high_profit';
+        } else if (actualProfit >= 3 && analysis.margin >= 30) {
+            status = 'good_profit';
+        }
+
+        // Add Gemini match status to the status
+        if (geminiAnalysis.isMatch) {
+            status += '_matched';
+        } else {
+            status += '_unmatched';
+        }
+
+        analysis.status = status;
+
+        // Debug filtering logic
+        console.log(`\n=== FILTERING LOGIC FOR POSITION ${result.position} ===`);
+        console.log('amazonPrice >= totalCosts:', amazonPrice >= totalCosts, `(${amazonPrice} >= ${totalCosts})`);
+        console.log('geminiAnalysis.isMatch:', geminiAnalysis.isMatch);
+        console.log('geminiAnalysis.confidence !== "low":', geminiAnalysis.confidence !== 'low');
+        console.log('Will be profitable:', amazonPrice >= totalCosts && geminiAnalysis.isMatch && geminiAnalysis.confidence !== 'low');
+        console.log('=== END FILTERING LOGIC ===\n');
+
+        // Only include results that meet minimum profit requirements AND have good Gemini match
+        if (amazonPrice >= totalCosts && geminiAnalysis.isMatch && geminiAnalysis.confidence !== 'low') {
             profitableResults.push({
                 ...result,
-                analysis: {
-                    price: amazonPrice,
-                    profit: actualProfit,
-                    margin: margin,
-                    status: status,
-                    amazonFee: amazonFee,
-                    totalCosts: totalCosts,
-                    minimumRequiredPrice: totalCosts
-                }
+                analysis: analysis
             });
         } else {
             unprofitableResults.push({
                 ...result,
-                analysis: {
-                    price: amazonPrice,
-                    profit: actualProfit,
-                    margin: 0,
-                    status: 'unprofitable',
-                    amazonFee: amazonFee,
-                    totalCosts: totalCosts,
-                    minimumRequiredPrice: totalCosts
-                }
+                analysis: analysis
             });
         }
-    });
+    }
 
     // Sort profitable results by profit (highest first)
     profitableResults.sort((a, b) => b.analysis.profit - a.analysis.profit);
@@ -284,17 +428,36 @@ function analyzeProfitability(wholesaleProduct, amazonResults) {
     if (profitableResults.length === 0) {
         recommendations.push('❌ No profitable results found - all Amazon prices below minimum requirements');
         recommendations.push(`💰 Minimum required price: $${(wholesaleCost + shipping + minimumProfit + (wholesaleCost * 0.15)).toFixed(2)}`);
+        
+        // Check if there were unmatched results
+        const unmatchedResults = unprofitableResults.filter(r => !r.analysis.geminiMatch);
+        if (unmatchedResults.length > 0) {
+            recommendations.push(`🤖 ${unmatchedResults.length} results filtered out due to product mismatch`);
+        }
     } else {
-        if (bestMatch.analysis.status === 'high_profit') {
+        if (bestMatch.analysis.status.includes('high_profit')) {
             recommendations.push('🚀 High profit opportunity! Consider stocking this item');
-        } else if (bestMatch.analysis.status === 'good_profit') {
+        } else if (bestMatch.analysis.status.includes('good_profit')) {
             recommendations.push('✅ Good profit margin - worth considering');
         } else {
             recommendations.push('⚠️ Low profit margin - may not be worth the effort');
         }
 
+        // Add Gemini match information
+        if (bestMatch.analysis.geminiMatch) {
+            recommendations.push(`🤖 AI confirmed product match (${bestMatch.analysis.geminiConfidence} confidence)`);
+        }
+
         if (unprofitableResults.length > 0) {
-            recommendations.push(`📊 ${unprofitableResults.length} results filtered out for low profitability`);
+            const unmatchedCount = unprofitableResults.filter(r => !r.analysis.geminiMatch).length;
+            const unprofitableCount = unprofitableResults.filter(r => r.analysis.geminiMatch).length;
+            
+            if (unmatchedCount > 0) {
+                recommendations.push(`🤖 ${unmatchedCount} results filtered out due to product mismatch`);
+            }
+            if (unprofitableCount > 0) {
+                recommendations.push(`📊 ${unprofitableCount} matched results filtered out for low profitability`);
+            }
         }
 
         if (bestMatch.rating && bestMatch.rating >= 4.0) {
@@ -322,14 +485,22 @@ function analyzeProfitability(wholesaleProduct, amazonResults) {
 
 /**
  * Extracts numeric price from various price formats
- * @param {string} priceString - Price string like "$8.99", "8.99", etc.
+ * @param {string|number} priceInput - Price string like "$8.99", "8.99", or number
  * @returns {number|null} - Extracted price or null if invalid
  */
-function extractPrice(priceString) {
-    if (!priceString) return null;
+function extractPrice(priceInput) {
+    if (!priceInput) return null;
+    
+    // If it's already a number, return it
+    if (typeof priceInput === 'number') {
+        return isNaN(priceInput) ? null : priceInput;
+    }
+    
+    // If it's a string, clean it and parse
+    const priceString = priceInput.toString();
     
     // Remove currency symbols and common text
-    const cleanPrice = priceString.toString()
+    const cleanPrice = priceString
         .replace(/[$€£¥]/g, '') // Remove currency symbols
         .replace(/[^\d.,]/g, '') // Keep only digits, dots, and commas
         .replace(',', ''); // Remove commas
@@ -380,4 +551,5 @@ module.exports = {
     analyzeProfitability,
     extractPrice
 };
+
 
