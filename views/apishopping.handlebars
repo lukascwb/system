@@ -59,8 +59,8 @@
               <div class="product-result ">
                 <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
                 <a style="color: white;" target="_blank" href="{{link}}">
-                  <p class="text-wrap {{#if (eq (checkApprovedSeller seller geminiStatus geminiReason) '')}}approved{{else}}rejected{{/if}}">
-                    {{title}} - {{price}} - {{seller}}{{#if (eq (checkApprovedSeller seller geminiStatus geminiReason) '')}} - Aprovado{{else}} - {{checkApprovedSeller seller geminiStatus geminiReason}}{{/if}}
+                  <p class="text-wrap {{#if (eq geminiStatus 'Aprovado')}}approved{{else if (eq geminiReason 'Preço muito alto')}}roi-rejected{{else}}rejected{{/if}}">
+                    {{title}} - {{price}} - {{seller}}{{#if (eq geminiStatus 'Aprovado')}} - Aprovado{{else}} - {{geminiReason}}{{/if}}
                   </p>
                 </a>
               </div>
@@ -168,12 +168,17 @@
 
   /* Styles for approval status */
   .text-wrap.approved {
-    color: #28a745 !important;
+    color: #28a745 !important;  /* Verde: Produto aprovado */
     font-weight: bold;
   }
 
   .text-wrap.rejected {
-    color: #dc3545 !important;
+    color: #dc3545 !important;  /* Vermelho: Seller não aprovado ou análise de AI falhou */
+    font-weight: bold;
+  }
+
+  .text-wrap.roi-rejected {
+    color: #ffc107 !important;  /* Amarelo: Apenas quando ROI/Preço não aprovado */
     font-weight: bold;
   }
 </style>
