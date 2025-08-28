@@ -265,6 +265,20 @@ app.get('/generate', authenticate, async function (req, res) {
 */
 const ITEMS_PER_PAGE = 10;
 
+// Utility function to clean and parse prices from CSV (handles European format with commas)
+function cleanAndParsePrice(priceString) {
+    if (!priceString || priceString === '' || priceString === '-') return 0;
+    try {
+        // Remove $, trim spaces, replace comma with dot for decimal separator
+        const cleanPrice = priceString.replace('$', '').trim().replace(',', '.');
+        const parsedPrice = parseFloat(cleanPrice);
+        return isNaN(parsedPrice) ? 0 : parsedPrice;
+    } catch (error) {
+        console.error("Error parsing price:", priceString, error);
+        return 0;
+    }
+}
+
 app.get('/api/page/:page', authenticate, async function (req, res) { // Make the route handler async
 
 
@@ -290,103 +304,76 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
 
         const tblKeepa = keepaRecords.map(record => {
             const data = record.toJSON();
-            if (data['Sales Rank: Current']) {
+            // Handle Sales Ranks - convert to thousands and handle invalid values
+            if (data['Sales Rank: Current'] && data['Sales Rank: Current'] !== '-' && !isNaN(data['Sales Rank: Current'])) {
                 data['Sales Rank: Current'] = (data['Sales Rank: Current'] / 1000).toFixed(3);
+            } else {
+                data['Sales Rank: Current'] = 'N/A';
             }
-            if (data['Sales Rank: 30 days avg.']) {
+            if (data['Sales Rank: 30 days avg.'] && data['Sales Rank: 30 days avg.'] !== '-' && !isNaN(data['Sales Rank: 30 days avg.'])) {
                 data['Sales Rank: 30 days avg.'] = (data['Sales Rank: 30 days avg.'] / 1000).toFixed(3);
+            } else {
+                data['Sales Rank: 30 days avg.'] = 'N/A';
             }
-            if (data['Sales Rank: 180 days avg.']) {
+            if (data['Sales Rank: 180 days avg.'] && data['Sales Rank: 180 days avg.'] !== '-' && !isNaN(data['Sales Rank: 180 days avg.'])) {
                 data['Sales Rank: 180 days avg.'] = (data['Sales Rank: 180 days avg.'] / 1000).toFixed(3);
+            } else {
+                data['Sales Rank: 180 days avg.'] = 'N/A';
             }
 
             // Add the new columns
 
-            let newCurrent;
-            try {
-                newCurrent = Number(data['New: Current'].replace('$', ''));
-            } catch (error) {
-                console.error("Error processing 'New: Current':", error);
-                newCurrent = 0; // Default or handle error as needed
-            }
+            let newCurrent = cleanAndParsePrice(data['New: Current']);
+            let new30DaysAvg = cleanAndParsePrice(data['New: 30 days avg.']);
+            let new180DaysAvg = cleanAndParsePrice(data['New: 180 days avg.']);
 
-            let new30DaysAvg;
-            try {
-                new30DaysAvg = Number(data['New: 30 days avg.'].replace('$', ''));
-            } catch (error) {
-                console.error("Error processing 'New: 30 days avg.':", error);
-                new30DaysAvg = 0; // Default or handle error as needed
-            }
-
-            let new180DaysAvg;
-            try {
-                new180DaysAvg = Number(data['New: 180 days avg.'].replace('$', ''));
-            } catch (error) {
-                console.error("Error processing 'New: 180 days avg.':", error);
-                new180DaysAvg = 0; // Default or handle error as needed
-            }
-
-            let newAverageRaw = (newCurrent + new30DaysAvg + new180DaysAvg) / 3;
-            try {
+            // Calculate New Average - only if we have valid prices
+            let newAverageRaw = 0;
+            let validPriceCount = 0;
+            if (newCurrent > 0) validPriceCount++;
+            if (new30DaysAvg > 0) validPriceCount++;
+            if (new180DaysAvg > 0) validPriceCount++;
+            
+            if (validPriceCount > 0) {
+                newAverageRaw = (newCurrent + new30DaysAvg + new180DaysAvg) / validPriceCount;
                 data['New: Average'] = newAverageRaw.toFixed(2);
-            } catch (error) {
-                console.error("Error processing 'New: Average' toFixed:", error);
-                data['New: Average'] = 0; // Default or handle error as needed
+            } else {
+                data['New: Average'] = 'N/A';
             }
 
 
-            let buyBoxCurrent;
-            try {
-                buyBoxCurrent = Number(data['Buy Box: Current'].replace('$', ''));
-            } catch (error) {
-                console.error("Error processing 'Buy Box: Current':", error);
-                buyBoxCurrent = 0; // Default or handle error as needed
-            }
+            let buyBoxCurrent = cleanAndParsePrice(data['Buy Box: Current']);
+            let buyBox90DaysAvg = cleanAndParsePrice(data['Buy Box: 90 days avg.']);
 
-            let buyBox90DaysAvg;
-            try {
-                buyBox90DaysAvg = Number(data['Buy Box: 90 days avg.'].replace('$', ''));
-            } catch (error) {
-                console.error("Error processing 'Buy Box: 90 days avg.':", error);
-                buyBox90DaysAvg = 0; // Default or handle error as needed
-            }
-
-            let buyBoxAverageRaw = (buyBoxCurrent + buyBox90DaysAvg) / 2;
-            try {
+            // Calculate Buy Box Average - only if we have valid prices
+            let buyBoxAverageRaw = 0;
+            let validBuyBoxPriceCount = 0;
+            if (buyBoxCurrent > 0) validBuyBoxPriceCount++;
+            if (buyBox90DaysAvg > 0) validBuyBoxPriceCount++;
+            
+            if (validBuyBoxPriceCount > 0) {
+                buyBoxAverageRaw = (buyBoxCurrent + buyBox90DaysAvg) / validBuyBoxPriceCount;
                 data['Buy Box: Average'] = buyBoxAverageRaw.toFixed(2);
-            } catch (error) {
-                console.error("Error processing 'Buy Box: Average' toFixed:", error);
-                data['Buy Box: Average'] = 0; // Default or handle error as needed
+            } else {
+                data['Buy Box: Average'] = 'N/A';
             }
 
 
-            let newPriceSellableRaw;
-            try {
-                newPriceSellableRaw = Number(data['New: Average']) * 0.4;
-            } catch (error) {
-                console.error("Error processing 'New: Average' for sellable calculation:", error);
-                newPriceSellableRaw = 0;
-            }
-            try {
-                data['New: Price Sellable'] = Number(newPriceSellableRaw.toFixed(2));
-            } catch (error) {
-                console.error("Error processing 'New: Price Sellable' toFixed:", error);
-                data['New: Price Sellable'] = 0; // Default or handle error as needed
+            // Calculate New Price Sellable - only if we have a valid average
+            if (data['New: Average'] !== 'N/A' && newAverageRaw > 0) {
+                const newPriceSellableRaw = newAverageRaw * 0.4;
+                data['New: Price Sellable'] = newPriceSellableRaw.toFixed(2);
+            } else {
+                data['New: Price Sellable'] = 'N/A';
             }
 
 
-            let buyBoxPriceSellableRaw;
-            try {
-                buyBoxPriceSellableRaw = Number(data['Buy Box: Average']) * 0.4;
-            } catch (error) {
-                console.error("Error processing 'Buy Box: Average' for sellable calculation:", error);
-                buyBoxPriceSellableRaw = 0;
-            }
-            try {
-                data['Buy Box: Price Sellable'] = Number(buyBoxPriceSellableRaw.toFixed(2));
-            } catch (error) {
-                console.error("Error processing 'Buy Box: Price Sellable' toFixed:", error);
-                data['Buy Box: Price Sellable'] = 0; // Default or handle error as needed
+            // Calculate Buy Box Price Sellable - only if we have a valid average
+            if (data['Buy Box: Average'] !== 'N/A' && buyBoxAverageRaw > 0) {
+                const buyBoxPriceSellableRaw = buyBoxAverageRaw * 0.4;
+                data['Buy Box: Price Sellable'] = buyBoxPriceSellableRaw.toFixed(2);
+            } else {
+                data['Buy Box: Price Sellable'] = 'N/A';
             }
 
 
@@ -455,7 +442,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
                     'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
                     'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
-                    'Target', 'VitaCost', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
+                    'Target', 'VitaCost', 'vitacost.com', 'Instacart', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
                 ];
                 
                 for (let i = 0; i < productsAPI.length; i++) {
@@ -500,7 +487,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                     } else {
                         console.log(`Product ${i + 1} - Seller REJECTED: ${seller} - Motivo: Vendedor não aprovado`);
                         product.geminiStatus = "Reprovado";
-                        product.geminiReason = "Vendedor não aprovado";
+                        product.geminiReason = "Vendedor reprovado";
                     }
                 }
                 console.log('=== SELLER PRE-FILTER END ===');
@@ -518,8 +505,8 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                         continue;
                     }
                     
-                    const amazonPrice = parseFloat(keepaRecord['New: Current'].replace('$', ''));
-                    const shoppingPrice = parseFloat(product.price.replace('$', ''));
+                    const amazonPrice = cleanAndParsePrice(keepaRecord['New: Current']);
+                    const shoppingPrice = cleanAndParsePrice(product.price);
                     
                     console.log(`Product ${i + 1} - Raw Price Data:`);
                     console.log(`  Raw Amazon Price: "${keepaRecord['New: Current']}"`);
@@ -592,7 +579,7 @@ app.get('/api/page/:page', authenticate, async function (req, res) { // Make the
                         apiRecord.title = " " + apiRecord.title;
                         let storePrice = 0;
                         try {
-                             storePrice = parseFloat(apiRecord.price.replace('$', '')) * unitKeepa * 2;
+                             storePrice = cleanAndParsePrice(apiRecord.price) * unitKeepa * 2;
                         } catch (error) {
                             console.error("Error processing 'storePrice':", error);
                             storePrice = 0; // Default or handle error as needed
