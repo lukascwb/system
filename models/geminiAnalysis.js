@@ -102,7 +102,11 @@ async function analyzeTitles(keepaTitle, productTitle) {
         const ruleBasedResult = quickRuleBasedMatch(keepaTitle, productTitle);
         if (ruleBasedResult.status === "Aprovado") {
             console.log('Rule-based match found - skipping AI analysis');
-            return ruleBasedResult;
+            return {
+                status: ruleBasedResult.status,
+                reason: ruleBasedResult.reason,
+                confidenceScore: 10 // High confidence for rule-based matches
+            };
         }
         
         // If rule-based check fails, use AI for more complex analysis
@@ -126,27 +130,33 @@ APROVE APENAS se TODOS os critérios forem atendidos EXATAMENTE:
 8. MESMA EMBALAGEM/QUANTIDADE POR PACOTE
 
 EXEMPLOS DE REPROVAÇÃO:
-- "Slimfast High Protein Ready to Drink Creamy Chocolate 11oz 12ct" vs "Nutrition Plan High Protein Chocolate 30g Shake 11.5fl.oz 12 Pack" → REPROVADO (marcas diferentes: Slimfast vs Nutrition Plan)
-- "Energy Boost 70 Fulvic Minerals" vs "Energy Boost 70 Concentrate" → REPROVADO (diferentes especificações)
-- "Vitamin C 1000mg 60 tablets" vs "Vitamin C 1000mg 120 tablets" → REPROVADO (quantidade diferente)
-- "Protein Powder Vanilla 2lb" vs "Protein Powder Chocolate 2lb" → REPROVADO (sabor diferente)
-- "Omega-3 1000mg Fish Oil" vs "Omega-3 1000mg Flaxseed Oil" → REPROVADO (fonte diferente)
-- "Multivitamin Men 50+" vs "Multivitamin Women 50+" → REPROVADO (público-alvo diferente)
-- "Protein Shake Chocolate 12oz" vs "Protein Shake Chocolate 16oz" → REPROVADO (tamanho diferente)
-- "Organic Green Tea 100 bags" vs "Green Tea 100 bags" → REPROVADO (especificação diferente: orgânico vs não orgânico)
+- "Slimfast High Protein Ready to Drink Creamy Chocolate 11oz 12ct" vs "Nutrition Plan High Protein Chocolate 30g Shake 11.5fl.oz 12 Pack" → REPROVADO (produtos diferentes)
+- "Energy Boost 70 Fulvic Minerals" vs "Energy Boost 70 Concentrate" → REPROVADO (produtos diferentes)
+- "Vitamin C 1000mg 60 tablets" vs "Vitamin C 1000mg 120 tablets" → REPROVADO (produtos diferentes)
+- "Protein Powder Vanilla 2lb" vs "Protein Powder Chocolate 2lb" → REPROVADO (produtos diferentes)
+- "Omega-3 1000mg Fish Oil" vs "Omega-3 1000mg Flaxseed Oil" → REPROVADO (produtos diferentes)
+- "Multivitamin Men 50+" vs "Multivitamin Women 50+" → REPROVADO (produtos diferentes)
+- "Protein Shake Chocolate 12oz" vs "Protein Shake Chocolate 16oz" → REPROVADO (produtos diferentes)
+- "Organic Green Tea 100 bags" vs "Green Tea 100 bags" → REPROVADO (produtos diferentes)
 
 EXEMPLOS DE APROVAÇÃO:
 - "Vitamin D3 2000IU 60 Softgels" vs "Vitamin D3 2000IU 60 Softgels" → APROVADO
 - "Protein Powder Vanilla 2lb" vs "Protein Powder Vanilla 2lb" → APROVADO
 
 IMPORTANTE: 
-- "Slimfast" ≠ "Nutrition Plan" (marcas diferentes)
-- "11oz" ≠ "11.5fl.oz" (tamanhos diferentes)
-- "Ready to Drink" ≠ "Shake" (formatos diferentes)
-- "Creamy Chocolate" ≠ "Chocolate" (especificações diferentes)
+- Qualquer diferença em marca, tamanho, sabor, cor, especificação, formato, etc. = PRODUTO DIFERENTE
+- Apenas produtos IDÊNTICOS são aprovados
 
-Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Tamanho diferente").
-O motivo deve ser objetivo e máximo 3 palavras.`;
+Responda APENAS com o formato: "STATUS|motivo|confiança" onde:
+- STATUS: "Aprovado" ou "Reprovado"
+- motivo: "Diferente" (para qualquer diferença) ou deixe vazio para aprovado
+- confiança: número de 0 a 10 (0 = muito incerto, 10 = completamente certo)
+
+Exemplos de resposta:
+- "Aprovado||10" (para matches perfeitos)
+- "Reprovado|Diferente|9" (muito confiante na rejeição)
+- "Reprovado|Diferente|7" (confiante mas não 100%)
+- "Reprovado|Diferente|4" (pouco confiante)`;
 
         const API_KEY = process.env.GOOGLE_API_KEY;
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
@@ -189,50 +199,69 @@ O motivo deve ser objetivo e máximo 3 palavras.`;
         const result = data.candidates[0].content.parts[0].text.trim();
         console.log('Gemini Raw Result:', `"${result}"`);
         
-        // Parse the result to extract status and reason
-        let finalStatus, finalReason;
-        if (result === "Aprovado") {
-            finalStatus = "Aprovado";
-            finalReason = null;
-        } else if (result.includes("|")) {
+        // Parse the result to extract status, reason, and confidence score
+        let finalStatus, finalReason, confidenceScore;
+        
+        if (result.includes("|")) {
             const parts = result.split("|");
+            const status = parts[0] ? parts[0].trim() : "Reprovado";
             const reason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+            const confidence = parts[2] ? parseInt(parts[2].trim()) : 5; // Default to 5 if not provided
             
-            // Check if the reason is about size and if the product title doesn't specify size
-            if (reason.toLowerCase().includes("tamanho") || reason.toLowerCase().includes("size")) {
-                const keepaHasSize = hasSizeSpecification(keepaTitle);
-                const productHasSize = hasSizeSpecification(productTitle);
-                
-                                 // If Keepa has size but product doesn't, mark as "Sem Tamanho"
-                 if (keepaHasSize && !productHasSize) {
-                     finalStatus = "Sem Tamanho";
-                     finalReason = "Sem Tamanho";
-                 } else {
+            // Validate confidence score
+            confidenceScore = Math.max(0, Math.min(10, confidence)); // Clamp between 0-10
+            
+            if (status === "Aprovado") {
+                finalStatus = "Aprovado";
+                finalReason = null;
+            } else {
+                // Check if the reason is about size and if the product title doesn't specify size
+                if (reason.toLowerCase().includes("tamanho") || reason.toLowerCase().includes("size")) {
+                    const keepaHasSize = hasSizeSpecification(keepaTitle);
+                    const productHasSize = hasSizeSpecification(productTitle);
+                    
+                    // If Keepa has size but product doesn't, mark as "Sem Tamanho"
+                    if (keepaHasSize && !productHasSize) {
+                        finalStatus = "Sem Tamanho";
+                        finalReason = "Sem Tamanho";
+                    } else {
+                        finalStatus = "Reprovado";
+                        finalReason = reason;
+                    }
+                } else {
                     finalStatus = "Reprovado";
                     finalReason = reason;
                 }
-            } else {
-                finalStatus = "Reprovado";
-                finalReason = reason;
             }
         } else {
-            finalStatus = "Reprovado";
-            finalReason = "Análise falhou";
+            // Fallback for old format responses
+            if (result === "Aprovado") {
+                finalStatus = "Aprovado";
+                finalReason = null;
+                confidenceScore = 8; // Default confidence for approved
+            } else {
+                finalStatus = "Reprovado";
+                finalReason = "Análise falhou";
+                confidenceScore = 3; // Low confidence for failed analysis
+            }
         }
         
         console.log('Gemini Final Status:', finalStatus);
         console.log('Gemini Final Reason:', finalReason);
+        console.log('Gemini Confidence Score:', confidenceScore);
         
         return {
             status: finalStatus,
-            reason: finalReason
+            reason: finalReason,
+            confidenceScore: confidenceScore
         };
 
     } catch (error) {
         console.error("Error analyzing titles with Gemini:", error);
         return {
             status: "Reprovado",
-            reason: "Erro na análise"
+            reason: "Erro na análise",
+            confidenceScore: 1 // Very low confidence for errors
         };
     }
 }
@@ -325,7 +354,7 @@ function quickRuleBasedMatch(keepaTitle, productTitle) {
     
     // If brands don't match, reject
     if (keepaBrand && productBrand && keepaBrand !== productBrand) {
-        return { status: "Reprovado", reason: "Marca diferente" };
+        return { status: "Reprovado", reason: "Diferente" };
     }
     
     // If brands match, check for key product identifiers

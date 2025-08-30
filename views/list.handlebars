@@ -1,16 +1,404 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Keepa IDs</title>
+    <link rel="stylesheet" href="/css/bootstrap.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Analysis Dashboard - Keepa Collections</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .keepa-item {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .keepa-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .keepa-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .keepa-id {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 0.75rem;
+            background: rgba(103, 126, 234, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(103, 126, 234, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-analyze {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-analyze:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(103, 126, 234, 0.4);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-analyzed {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+        
+        .status-pending {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .last-updated {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+        }
+        
+        .overall-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .overall-stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .overall-stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .overall-stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: #667eea !important;
+        }
+        
+        .nav-link {
+            color: #6c757d !important;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: #667eea !important;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+        }
+        
+        .search-box {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .search-input {
+            border: 2px solid rgba(103, 126, 234, 0.2);
+            border-radius: 25px;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(103, 126, 234, 0.1);
+        }
+    </style>
 </head>
 <body>
-    <h1>Keepa IDs</h1>
-    <ul>
-        {{#each keepaIds}}
-            <li>
-                <a href="/api/page/1?keepa_id={{this}}">{{this}}</a>
-            </li>
-        {{/each}}
-    </ul>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>Product Analysis System
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/"><i class="fas fa-home me-1"></i>Home</a>
+                <a class="nav-link active" href="/list"><i class="fas fa-list me-1"></i>Collections</a>
+                <a class="nav-link" href="/keepa"><i class="fas fa-upload me-1"></i>Upload</a>
+                <a class="nav-link" href="/logout"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-database text-primary me-2"></i>
+                        Keepa Collections Dashboard
+                    </h1>
+                    <p class="text-muted mb-0 mt-2">Manage and analyze your product collections</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-primary" onclick="refreshPage()">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                        <a href="/keepa" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Upload New
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overall Statistics -->
+        <div class="overall-stats">
+            <div class="overall-stat-card">
+                <div class="overall-stat-value">{{totalKeepaIds}}</div>
+                <div class="overall-stat-label">Collections</div>
+            </div>
+            <div class="overall-stat-card">
+                <div class="overall-stat-value">{{totalProducts}}</div>
+                <div class="overall-stat-label">Total Products</div>
+            </div>
+            <div class="overall-stat-card">
+                <div class="overall-stat-value">{{totalAnalyzed}}</div>
+                <div class="overall-stat-label">Analyzed Products</div>
+            </div>
+            <div class="overall-stat-card">
+                <div class="overall-stat-value">{{#if totalProducts}}{{round (multiply (divide totalAnalyzed totalProducts) 100) 1}}{{else}}0{{/if}}%</div>
+                <div class="overall-stat-label">Analysis Coverage</div>
+            </div>
+        </div>
+
+        <!-- Search Box -->
+        <div class="search-box">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search collections by ID...">
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-outline-secondary" onclick="clearSearch()">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collections List -->
+        {{#if keepaStats}}
+            <div id="collectionsList">
+                {{#each keepaStats}}
+                <div class="keepa-item" data-keepa-id="{{keepa_id}}">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="keepa-id">{{keepa_id}}</div>
+                            
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-value">{{totalProducts}}</span>
+                                    <div class="stat-label">Products</div>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">{{analyzedProducts}}</span>
+                                    <div class="stat-label">Analyzed</div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                {{#if hasApiData}}
+                                    <span class="status-badge status-analyzed">
+                                        <i class="fas fa-check me-1"></i>{{analysisPercentage}}% Analyzed
+                                    </span>
+                                {{else}}
+                                    <span class="status-badge status-pending">
+                                        <i class="fas fa-clock me-1"></i>Pending
+                                    </span>
+                                {{/if}}
+                            </div>
+                            
+                            <div class="last-updated">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                Last updated: {{formatDate lastUpdated}}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 text-end">
+                            <a href="/api/page/1?keepa_id={{keepa_id}}" class="btn-analyze">
+                                <i class="fas fa-chart-line"></i>
+                                Analyze Products
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+        {{else}}
+            <div class="empty-state">
+                <i class="fas fa-database"></i>
+                <h3>No Collections Found</h3>
+                <p class="text-muted">Upload your first Keepa CSV file to get started with product analysis.</p>
+                <a href="/keepa" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i>Upload First Collection
+                </a>
+            </div>
+        {{/if}}
+    </div>
+
+    <script>
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const items = document.querySelectorAll('.keepa-item');
+            
+            items.forEach(item => {
+                const keepaId = item.getAttribute('data-keepa-id').toLowerCase();
+                if (keepaId.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            const items = document.querySelectorAll('.keepa-item');
+            items.forEach(item => {
+                item.style.display = 'block';
+            });
+        }
+        
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        // Auto-refresh every 5 minutes
+        setInterval(refreshPage, 300000);
+    </script>
 </body>
 </html>

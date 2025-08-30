@@ -1,236 +1,668 @@
-<form id="keepaForm" action="/api" method="GET"> <!---Add id to the form-->
-  <div style="text-align: center;">
-    <h1>API Google Shopping</h1>Total page load time: {{'totalTime'}} seconds
-    <h1>Keepa Data - Page {{currentPage}} of {{totalPages}}</h1>
-
-  </div>
-
-  <div class="container-fluid" style="inline-size: max-content; display: inline">
-    <table class="table table-dark">
-      <thead>
-        <tr>
-          <th>Image</th>
-          <th>Title</th>
-          <th>Prices/ Sales rank</th>
-          <th>Desc</th>
-          <th>Others</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each tblKeepa}}
-        <tr id="keepa-row-{{@index}}">
-          <td><a target="_blank" href="{{'URL: Amazon'}}"><img width="80" height="80" src="{{Image}}"
-                class="rounded mx-auto d-block zoom" alt="Not Found"></a></td>
-          <th class="text-wrap"> <a target="_blank" href="{{'URL: Amazon'}}">{{Title}}</a></th>
-          <th> <b>Avg Offer: ${{'New: Average'}} - Price Sellable: ${{'New: Price Sellable'}}<br>
-              Avg BB: ${{'Buy Box: Average'}} Price Sellable: ${{'Buy Box: Price Sellable'}}</b> <br>
-
-            Sales Rank: {{'Sales Rank: Current'}} - Sales Rank: 30D: {{'Sales Rank: 30 days avg.'}}- Sales Rank: 180D:
-            {{'Sales Rank: 180 days
-            avg.'}}<br>
-            <br>
-          </th>
-          <th>
-            Bought in past month: {{'Bought in past month'}} <br>
-            Offer - Current:{{'New Offer Count: Current'}} - Brand: {{'Brand'}} -  
-            <a style="color: white;" target="_blank" href="{{BJs Brand}}">
-              BJ's
-            </a>
-            <br>
-            Amazon BB:{{'Buy Box: % Amazon 365 days'}} {{checkAmazonBB 'Buy Box: % Amazon 365 days'}} - Buy Box: Is FBA:
-            {{'Buy Box: Is FBA'}}<br>
-            <br>
-          </th>
-          <th>
-            New: {{'New: Current'}} - New 30D: {{'New: 30 days avg.'}} - New 180D:
-            {{'New: 180 days avg.'}}<br>
-            Buy Box: {{'Buy Box: Current'}} - Buy Box: 90D: {{'Buy Box: 90 days
-            avg.'}}<br>
-            Variation Ct: {{'Variation Count'}}
-            <a style="color: white;" target="_blank" href="{{html_url}}">
-              <p class="text-wrap">Google Shopping🔗</p>
-            </a>
-          </th>
-        </tr>
-        <tr>
-          <td colspan="6">
-            <div class="d-flex flex-wrap">
-              {{#each productsAPI}}
-              <div class="product-result ">
-                <img width="80" height="80" src="{{thumbnail}}" class="rounded mx-auto d-block zoom" alt="Not Found" >
-                <a style="color: white;" target="_blank" href="{{link}}">
-                                     <p class="text-wrap {{#if (eq geminiStatus 'Aprovado')}}approved{{else if (eq geminiReason 'Preço muito alto')}}roi-rejected{{else if (eq geminiReason 'Quantidade diferente')}}quantity-different{{else if (eq geminiStatus 'Sem Tamanho')}}size-not-specified{{else}}rejected{{/if}}">
-                    {{title}} - {{price}} - {{seller}}{{#if (eq geminiStatus 'Aprovado')}} - Aprovado{{else}} - {{geminiReason}}{{/if}}
-                  </p>
-                </a>
-              </div>
-              {{/each}}
-
-              <br>
-            </div>
-          </td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-    <nav aria-label="Page navigation">
-      <ul class="pagination">
-        {{#if (gt currentPage 1)}}
-        <li class="page-item">
-          <a class="page-link" href="/api/page/{{dec currentPage}}?keepa_id={{keepa_id}}">Previous</a>
-        </li>
-        {{/if}}
-        {{#each (range startPage (inc endPage))}}
-        <li class="page-item {{#if (eq this currentPage)}}active{{/if}}">
-          <a class="page-link" href="/api/page/{{this}}?keepa_id={{../keepa_id}}">{{this}}</a>
-        </li>
-        {{/each}}
-
-        {{#if (lt currentPage totalPages)}}
-        <li class="page-item">
-          <a class="page-link" href="/api/page/{{inc currentPage}}?keepa_id={{keepa_id}}">Next</a>
-        </li>
-        {{/if}}
-      </ul>
-    </nav>
-  </div>
-</form>
-
-<style>
-  /* ... (your previous styles for table, text-wrap, etc.) ... */
-
-  /* Style for product result containers */
-  .product-result {
-    margin-right: 10px;
-    /* Add spacing between results */
-    text-align: center;
-    align-items: center;
-  }
-
-
-  .table td,
-  .table th {
-    max-height: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /* Remove white-space: nowrap; to allow wrapping */
-    text-align: center;
-    vertical-align: middle;
-  }
-
-  .table {
-    width: 100%;
-  }
-
-  /* Apply text-wrap class and set max-width for specific columns */
-  .text-wrap {
-    word-wrap: break-word;
-    /* Allow long words to break */
-    max-width: 230px;
-    /* Adjust as needed */
-    text-align: center;
-    vertical-align: middle;
-  }
-
-  .text-wrap1 {
-    word-wrap: break-word;
-    /* Allow long words to break */
-    max-width: 100px;
-    /* Adjust as needed */
-  }
-
-  .zoom {
-    /* Animation */
-    margin: 0 auto;
-  }
-
-  .zoom:hover {
-    transform: scale(6);
-    position: absolute;
-    transform-origin: center center;
-    /* Default value */
-  }
-
-  tr td:nth-child(1) .zoom:hover {
-    transform-origin: left center;
-    /* Set the origin to the left edge for the first image */
-  }
-
-  tr td:nth-child(5) .zoom:hover {
-    transform-origin: right center;
-    /* Set the origin to the right edge for the last image */
-  }
-
-  .matching-row {
-    background-color: #60cd603d;
-    /* Or any color you prefer */
-  }
-
-  /* Styles for approval status */
-  .text-wrap.approved {
-    color: #28a745 !important;  /* Verde: Produto aprovado */
-    font-weight: bold;
-  }
-
-  .text-wrap.rejected {
-    color: #dc3545 !important;  /* Vermelho: Seller não aprovado ou análise de AI falhou */
-    font-weight: bold;
-  }
-
-  .text-wrap.roi-rejected {
-    color: #ffc107 !important;  /* Amarelo: Apenas quando ROI/Preço não aprovado */
-    font-weight: bold;
-  }
-
-  .text-wrap.quantity-different {
-    color: #ffffff !important;  /* Branco: Quantidade diferente - pode ser adequado para o cliente */
-    font-weight: bold;
-  }
-
-  .text-wrap.size-not-specified {
-    color: #ffffff !important;  /* Branco: Tamanho não especificado - pode ser adequado para o cliente */
-    font-weight: bold;
-  }
-</style>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-  const images = document.querySelectorAll('.zoom');
-
-  images.forEach(img => {
-    img.addEventListener('click', async (event) => {
-      const productId = img.dataset.productId;
-
-      if (productId) {
-        try {
-          const response = await fetch(`https://www.searchapi.io/api/v1/search?api_key=YOUR_API_KEY&engine=google_product&product_id=${productId}`);
-          const data = await response.json();
-
-          if (data.product && data.offers && data.offers.length > 0) {
-            const offer = data.offers[0]; // Get the first offer
-            const storeLink = offer.link;
-            const linkContainer = img.parentNode.parentNode;
-            const newLink = document.createElement('a');
-            newLink.href = storeLink;
-            newLink.target = "_blank";
-            newLink.textContent = "Store Link: " + storeLink;
-            newLink.style.display = "block";
-            linkContainer.appendChild(newLink);
-
-          } else if (data.product) {
-            // Handle case where offers might be empty or missing:
-            alert("No offers found for this product (product details available).");
-            console.log("Product Details:", data.product); // Log product details for debugging
-          } else {
-            alert("No product data found.");
-          }
-
-        } catch (error) {
-          console.error("Error fetching offer details:", error);
-          alert("Error fetching offer details. Please try again later.");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Analysis Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
         }
-      }
-    });
-  });
-});
-</script>
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .product-card:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .product-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1.5rem;
+        }
+        
+        .stats-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .text-white-50 {
+            color: rgba(255, 255, 255, 0.5) !important;
+        }
+        
+        .text-white-75 {
+            color: rgba(255, 255, 255, 0.75) !important;
+        }
+
+        .product-image {
+            width: 250px;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .product-image:hover {
+            transform: scale(2);
+        }
+
+        /* Zoom functionality for images */
+        .zoom {
+            margin: 0 auto;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .zoom:hover {
+            transform: scale(8);
+        }
+
+        a .zoom:hover {
+            transform: scale(8);
+        }
+
+        .shopping-results {
+            background: var(--light-bg);
+            padding: 1.5rem;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .result-card.approved {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .result-card.rejected {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .result-card.roi-rejected {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .badge {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.6rem;
+        }
+
+        .badge.bg-danger {
+            background-color: rgb(199, 137, 143) !important;
+        }
+
+        .pagination {
+            justify-content: center;
+            margin-top: 2rem;
+            list-style: none;
+            padding: 0;
+        }
+
+        .pagination .page-item {
+            display: inline-block;
+            margin: 0 0.2rem;
+        }
+
+        .pagination .page-link {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #dee2e6;
+            color: var(--primary-color);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            display: block;
+            min-width: 40px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .pagination .page-link:hover {
+            background: var(--secondary-color);
+            color: white;
+            transform: translateY(-2px);
+            text-decoration: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .pagination .page-item.active .page-link {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .pagination .page-item.disabled .page-link {
+            background: #f8f9fa;
+            color: #6c757d;
+            border-color: #dee2e6;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .search-filters {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-outline-light:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        Product Analysis Dashboard
+                    </h1>
+                    <p class="text-muted mb-0 mt-2">Analyze product performance and market opportunities</p>
+                    
+                    <!-- Status Bar -->
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <small class="text-muted">Page</small>
+                                <div class="fw-bold text-primary">{{currentPage}} / {{totalPages}}</div>
+                            </div>
+                                                         <div class="col-md-4">
+                                 <small class="text-muted">Total Products</small>
+                                 <div class="fw-bold text-success">{{totalKeepaProducts}}</div>
+                             </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Load Time</small>
+                                <div class="fw-bold text-info" id="loadTime">Calculating...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-primary" onclick="exportData()">
+                            <i class="fas fa-download me-1"></i>Export Data
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                            <i class="fas fa-filter me-1"></i>Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="search-filters">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="searchInput" class="form-label">Search Products</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by product title..." onkeyup="filterProducts()">
+                </div>
+                <div class="col-md-3">
+                    <label for="statusFilter" class="form-label">AI Status</label>
+                    <select class="form-select" id="statusFilter" onchange="filterProducts()">
+                        <option value="">All Status</option>
+                        <option value="Aprovado">Approved</option>
+                        <option value="Reprovado">Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="sellerFilter" class="form-label">Seller</label>
+                    <select class="form-select" id="sellerFilter" onchange="filterProducts()">
+                        <option value="">All Sellers</option>
+                        <option value="Amazon">Amazon</option>
+                        <option value="Walmart">Walmart</option>
+                        <option value="Target">Target</option>
+                        <option value="Best Buy">Best Buy</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-primary w-100" onclick="filterProducts()">
+                        <i class="fas fa-search me-1"></i>Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Container -->
+        <div id="productsContainer">
+            {{#each tblKeepa}}
+            <div class="product-card">
+                <!-- Product Header -->
+                <div class="product-header">
+                    <div class="row align-items-start">
+                        <div class="col-md-2 text-center">
+                            <a href="{{'URL: Amazon'}}" target="_blank">
+                                <img src="{{Image}}" alt="{{Title}}" class="product-image zoom">
+                            </a>
+                        </div>
+                        <div class="col-md-10">
+                            <h5 class="mb-3">
+                                <a href="{{'URL: Amazon'}}" target="_blank" class="text-white text-decoration-none">
+                                    {{Title}}
+                                </a>
+                            </h5>
+                            
+                            <div class="mb-3">
+                                <a href="{{html_url}}" target="_blank" class="btn btn-outline-light btn-sm">
+                                    <i class="fas fa-search me-1"></i>Search API Google Shopping
+                                </a>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="stats-section">
+                                        <h6 class="text-white-50 mb-2 d-flex justify-content-between align-items-center">
+                                            <span>Amazon Prices</span>
+                                            <small class="text-white-75">Avg: {{'New: Average'}}</small>
+                                        </h6>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">Current:</span>
+                                            <strong class="text-white">{{'New: Current'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">30D Avg:</span>
+                                            <strong class="text-white">{{'New: 30 days avg.'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-white-75">180D Avg:</span>
+                                            <strong class="text-white">{{'New: 180 days avg.'}}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <div class="stats-section">
+                                        <h6 class="text-white-50 mb-2 d-flex justify-content-between align-items-center">
+                                            <span>Buy Box</span>
+                                            <small class="text-white-75">Avg: {{'Buy Box: Average'}}</small>
+                                        </h6>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">Current:</span>
+                                            <strong class="text-white">{{'Buy Box: Current'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">90D Avg:</span>
+                                            <strong class="text-white">{{'Buy Box: 90 days avg.'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-white-75">Amazon %:</span>
+                                            <strong class="text-white">{{'Buy Box: % Amazon 365 days'}}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <div class="stats-section">
+                                        <h6 class="text-white-50 mb-2">Sales Rank</h6>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">Current:</span>
+                                            <strong class="text-white">{{'Sales Rank: Current'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">30D Avg:</span>
+                                            <strong class="text-white">{{'Sales Rank: 30 days avg.'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-white-75">180D Avg:</span>
+                                            <strong class="text-white">{{'Sales Rank: 180 days avg.'}}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <div class="stats-section">
+                                        <h6 class="text-white-50 mb-2">Reviews & Performance</h6>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">Review Count:</span>
+                                            <strong class="text-white">{{lookup . 'Reviews: Review Count - Format Specific'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">Bought Past Month:</span>
+                                            <strong class="text-white">{{formatNumber (lookup . 'Bought in past month')}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span class="text-white-75">Item Weight:</span>
+                                            <strong class="text-white">{{lookup . 'Item: Weight (g)'}}</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-white-75">Variations:</span>
+                                            <strong class="text-white">{{lookup . 'Variation Count'}}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shopping Results -->
+                <div class="shopping-results">
+                    <div class="row">
+                        {{#if productsAPI}}
+                            {{#each productsAPI}}
+                            {{!-- Temporarily show all products for debugging --}}
+                            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="result-card {{#if (eq geminiStatus 'Aprovado')}}approved{{else if (eq geminiReason 'Preço muito alto')}}roi-rejected{{else}}rejected{{/if}}"
+                                 data-seller="{{seller}}" data-status="{{geminiStatus}}" style="height: auto;">
+                                <div class="d-flex align-items-start gap-3">
+                                    <!-- Product Image Column -->
+                                    <div class="text-center" style="min-width: 100px;">
+                                        <img src="{{thumbnail}}" alt="{{title}}" class="rounded zoom mb-2" style="width: 70px; height: 70px; object-fit: cover;">
+                                        
+
+                                        
+                                        <!-- AI Response Status - Under Seller -->
+                                        <div class="mb-2">
+                                            {{#if (eq geminiStatus 'Aprovado')}}
+                                                <span class="badge bg-success" style="font-size: 0.65rem;">
+                                                    <i class="fas fa-check me-1"></i>OK
+                                                </span>
+                                                
+                                                <!-- Show title similarity for approved products too -->
+                                                <div class="mt-1">
+                                                    {{#with (titleSimilarity ../Title title)}}
+                                                    <span class="badge {{#if (gte this 8)}}bg-success{{else if (gte this 6)}}bg-warning{{else}}bg-danger{{/if}}" style="font-size: 0.65rem; display: block; text-align: center;">
+                                                        <i class="fas fa-link me-1"></i>Title Match:<br>{{this}}/10
+                                                    </span>
+                                                    {{/with}}
+                                                </div>
+                                            {{else}}
+                                                <span class="badge bg-danger" style="background-color: rgb(199, 137, 143) !important; font-size: 0.65rem; word-wrap: break-word; word-break: keep-all; max-width: 90px; white-space: normal; line-height: 1.1;">
+                                                    <i class="fas fa-times me-1"></i>{{geminiReason}}
+                                                </span>
+                                                
+                                                <div class="mt-1">
+                                                    {{#with (titleSimilarity ../Title title)}}
+                                                    <span class="badge {{#if (gte this 8)}}bg-success{{else if (gte this 6)}}bg-warning{{else}}bg-danger{{/if}}" style="font-size: 0.65rem; display: block; text-align: center;">
+                                                        <i class="fas fa-link me-1"></i>Title Match:<br>{{this}}/10
+                                                    </span>
+                                                    {{/with}}
+                                                </div>
+                                            {{/if}}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Product Information Column -->
+                                    <div class="flex-grow-1">
+                                        <!-- Title - Most Important -->
+                                        <h6 class="mb-2 fw-bold text-dark" style="word-wrap: break-word; line-height: 1.3; font-size: 0.85rem; max-height: 50px; overflow: hidden;">{{title}}</h6>
+                                        
+                                        <!-- Seller Button - Above Price/Profit -->
+                                        <div class="mb-2">
+                                            <a href="{{link}}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 0.65rem; padding: 0.3rem 0.6rem;">
+                                                <i class="fas fa-shopping-cart me-1"></i>{{seller}}
+                                            </a>
+                                        </div>
+                                        
+                                                                                 <!-- Price, Profit Row -->
+                                         <div class="d-flex flex-column gap-1">
+                                             <span class="badge bg-primary" style="font-size: 0.75rem;">${{price}}</span>
+                                             
+                                             {{#if price}}
+                                             {{#with (calculateProfitability ../ price)}}
+                                             <span class="badge {{#if isProfitable}}bg-success{{else}}bg-danger{{/if}}" style="font-size: 0.65rem;">
+                                                 <i class="fas {{#if isProfitable}}fa-arrow-up{{else}}fa-arrow-down{{/if}} me-1"></i>
+                                                 ${{profit}}
+                                             </span>
+                                             {{/with}}
+                                             {{/if}}
+                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
+                            {{/each}}
+                        {{else}}
+                            <div class="col-12">
+                                <div class="alert alert-info text-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    No API products found for this Keepa item.
+                                </div>
+                            </div>
+                        {{/if}}
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+
+        <!-- Pagination -->
+        <nav aria-label="Product pagination">
+            <ul class="pagination pagination-lg">
+                {{#if (gt currentPage 1)}}
+                <li class="page-item">
+                    <a class="page-link" href="/api/page/{{dec currentPage}}?keepa_id={{keepa_id}}">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                </li>
+                {{/if}}
+                
+                {{#if (gte currentPage 3)}}
+                <li class="page-item">
+                    <a class="page-link" href="/api/page/1?keepa_id={{keepa_id}}">1</a>
+                </li>
+                {{/if}}
+                
+                {{#if (gte currentPage 4)}}
+                <li class="page-item">
+                    <span class="page-link">...</span>
+                </li>
+                {{/if}}
+                
+                {{#if (gte currentPage 2)}}
+                <li class="page-item">
+                    <a class="page-link" href="/api/page/{{dec currentPage}}?keepa_id={{keepa_id}}">{{dec currentPage}}</a>
+                </li>
+                {{/if}}
+                
+                <li class="page-item active">
+                    <a class="page-link" href="/api/page/{{currentPage}}?keepa_id={{keepa_id}}">{{currentPage}}</a>
+                </li>
+                
+                {{#if (lt currentPage totalPages)}}
+                <li class="page-item">
+                    <a class="page-link" href="/api/page/{{inc currentPage}}?keepa_id={{keepa_id}}">{{inc currentPage}}</a>
+                </li>
+                {{/if}}
+                
+                {{#if (lte currentPage (dec totalPages 2))}}
+                <li class="page-item">
+                    <span class="page-link">...</span>
+                </li>
+                {{/if}}
+                
+                {{#if (lte currentPage (dec totalPages 1))}}
+                <li class="page-item">
+                    <a class="page-link" href="/api/page/{{totalPages}}?keepa_id={{keepa_id}}">{{totalPages}}</a>
+                </li>
+                {{/if}}
+                
+                {{#if (lt currentPage totalPages)}}
+                <li class="page-item">
+                    <a class="page-link" href="/api/page/{{inc currentPage}}?keepa_id={{keepa_id}}">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {{/if}}
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Search and Filter Functionality
+        function filterProducts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const sellerFilter = document.getElementById('sellerFilter').value;
+            
+            const productCards = document.querySelectorAll('.product-card');
+            
+            productCards.forEach(card => {
+                const title = card.querySelector('h5').textContent.toLowerCase();
+                const resultCards = card.querySelectorAll('.result-card');
+                let hasVisibleResults = false;
+                
+                resultCards.forEach(resultCard => {
+                    const seller = resultCard.dataset.seller.toLowerCase();
+                    const status = resultCard.dataset.status.toLowerCase();
+                    
+                    const matchesSearch = title.includes(searchTerm);
+                    const matchesStatus = !statusFilter || status.includes(statusFilter);
+                    const matchesSeller = !sellerFilter || seller.includes(sellerFilter);
+                    
+                    if (matchesSearch && matchesStatus && matchesSeller) {
+                        resultCard.style.display = 'block';
+                        hasVisibleResults = true;
+                    } else {
+                        resultCard.style.display = 'none';
+                    }
+                });
+                
+                card.style.display = hasVisibleResults || !searchTerm ? 'block' : 'none';
+            });
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('sellerFilter').value = '';
+            filterProducts();
+        }
+
+        // Export functionality
+        function exportData() {
+            const data = [];
+            document.querySelectorAll('.product-card').forEach(card => {
+                const title = card.querySelector('h5').textContent;
+                const price = card.querySelector('.price-profitable').textContent;
+                const results = Array.from(card.querySelectorAll('.result-card')).map(result => ({
+                    seller: result.dataset.seller,
+                    status: result.dataset.status,
+                    price: result.querySelector('.badge').textContent
+                }));
+                
+                data.push({ title, price, results });
+            });
+            
+            const csv = convertToCSV(data);
+            downloadCSV(csv, 'product-analysis.csv');
+        }
+
+        function convertToCSV(data) {
+            const headers = ['Product Title', 'Amazon Price', 'Seller', 'Status', 'Price'];
+            const rows = data.map(item => 
+                item.results.map(result => [
+                    item.title,
+                    item.price,
+                    result.seller,
+                    result.status,
+                    result.price
+                ])
+            ).flat();
+            
+            return [headers, ...rows].map(row => row.join(',')).join('\n');
+        }
+
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+                         // Calculate and display load time in seconds
+             const loadTimeElement = document.getElementById('loadTime');
+             if (loadTimeElement) {
+                 const loadTime = performance.now();
+                 const loadTimeSeconds = (loadTime / 1000).toFixed(2);
+                 loadTimeElement.textContent = loadTimeSeconds + 's';
+             }
+        });
+    </script>
+</body>
+</html>
