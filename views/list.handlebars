@@ -237,8 +237,8 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
+    <nav class="">
+        <!--<div class="container">
             <a class="navbar-brand" href="#">
                 <i class="fas fa-chart-line me-2"></i>Product Analysis System
             </a>
@@ -248,7 +248,7 @@
                 <a class="nav-link" href="/keepa"><i class="fas fa-upload me-1"></i>Upload</a>
                 <a class="nav-link" href="/logout"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
             </div>
-        </div>
+        </div>-->
     </nav>
 
     <div class="container mt-4">
@@ -323,22 +323,6 @@
                                     <span class="stat-value">{{totalProducts}}</span>
                                     <div class="stat-label">Products</div>
                                 </div>
-                                <div class="stat-item">
-                                    <span class="stat-value">{{analyzedProducts}}</span>
-                                    <div class="stat-label">Analyzed</div>
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                {{#if hasApiData}}
-                                    <span class="status-badge status-analyzed">
-                                        <i class="fas fa-check me-1"></i>{{analysisPercentage}}% Analyzed
-                                    </span>
-                                {{else}}
-                                    <span class="status-badge status-pending">
-                                        <i class="fas fa-clock me-1"></i>Pending
-                                    </span>
-                                {{/if}}
                             </div>
                             
                             <div class="last-updated">
