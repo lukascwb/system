@@ -73,7 +73,7 @@ async function insertProductData(lineKeepa) {
                         "engine": "google_shopping",
                         "q": enhancedQuery,
                         "location": location,
-                        "api_key": process.env.api_key,
+                        "api_key": process.env.SEARCHAPI_KEY || process.env.API_KEY_LOCAL,
                         "gl": "us",
                         "hl": "en",
                     };
@@ -128,6 +128,7 @@ async function insertProductData(lineKeepa) {
             analyzeApiResponseForApprovedSellers(response.data);
         }
         
+
         if (response.data && response.data.shopping_results && Array.isArray(response.data.shopping_results)) {
 
                     let dataGoogleShoppingAPI = {
@@ -196,6 +197,164 @@ async function insertProductData(lineKeepa) {
 }
 
 
+
+////////////////////////OLD FUNCTION NOT BEEN USED
+async function getProductData(tblKeepa) {
+    try {
+        //console.log(tblKeepa.titleKeepa[0]);
+        let limitedData = [];
+
+
+        /* CODE THAT IS WORKING
+         for (let i = 0; i < tblKeepa.length; i++) {
+             //API Working
+             let url = 'https://www.searchapi.io/api/v1/search?api_key=NSaKQST1EL6PLXbfN6t3fJ6f&engine=google_shopping&q=' + tblKeepa[i].Title + '&location=Fall%20River%2CMassachusetts%2CUnited+States&tbs=mr:1,local_avail:1,ss:30';
+             // Wait for the response:
+             const response = await axios.get(url);
+             // Now you can process and return the data:
+             limitedData.push(response.data.shopping_results.slice(0, 5));
+             //console.log(`Index ${i} -`, response.data.shopping_results.slice(0, 2));
+
+         }
+ */
+
+        //receive array
+        const keepaTitles = tblKeepa.map(record => record.Title) + " nearby";
+        ///PROMISSE ALL ------trying
+        try {
+            // Create an array of promises for each API request:
+
+            const promises = keepaTitles.map(title => {
+                //let url = `https://www.searchapi.io/api/v1/search?api_key=process.env.api_key&engine=google_shopping&q=${title}&location=Fall%20River%2CMassachusetts%2CUnited+States`
+                //let filter = `&tbs=mr:1,local_avail:1,ss:30`;
+                //let filter = `&tbs=mr:1,merchagg:g8299768%7Cg784994%7Cg128518585%7Cg8666297%7Cg138144780%7Cm8175035%7Cm125198988%7Cm125198037%7Cm5336668818%7Cm263254853%7Cm10046%7Cm366131026%7Cm178357739%7Cm178347382%7Cm178357103%7Cm260435655%7Cm118138822%7Cm10037%7Cm324480287%7Cm1062500&sa=X&ved=0ahUKEwib7Jieg7uGAxXuFFkFHftADK4QsysIogsoSw&biw=1718&bih=1304&dpr=1`;
+                const url = "https://www.searchapi.io/api/v1/search";
+                const params = {
+                    "engine": "google_shopping",
+                    "q": `${title} near 02721`,
+                    "location": "Raynham,Massachusetts,United States",//"Tauton,Massachusetts,United States",
+                    "api_key": process.env.SEARCHAPI_KEY || process.env.API_KEY_LOCAL,
+                    "tbs": "mr:1,local_avail:1,ss:30",
+                    "gl": "us",
+                };
+                //return axios.get(url);
+                return axios.get(url, { params });
+            });
+
+            const responses = await Promise.all(promises);
+
+            responses.forEach((response, index) => {
+                //add to db - googleshopping
+                tblKeepa[0].keepa_id
+
+                //in case when there is no shopping_results
+                if (!Array.isArray(response.data.shopping_results)) {
+                    limitedData.push({
+                        title: 'No Results',
+                    });
+                    tblKeepa[index].html_url = response.data.search_metadata.html_url;
+                    return;
+                }
+
+                //const length = response.data.shopping_results.length ? response.data.shopping_results.length > 7 ? 7 : response.data.shopping_results.length : 0;
+                
+                for (let i = 0; i < length; i++) {
+                    if (i == 0) {
+                        let dataGoogleShoppingAPI = {
+                            keepa_id: tblKeepa[index].keepa_id, // Replace with actual value
+                            status: response.data.search_metadata.status || null,
+                            total_time_taken: response.data.search_metadata.total_time_taken ? response.data.search_metadata.total_time_taken : null,
+                            //request_url: response.data.search_metadata.request_url || null,
+                            html_url: response.data.search_metadata.html_url || null,
+                            json_url: response.data.search_metadata.json_url || null,
+                            q: response.data.search_parameters.q || null,
+                        };
+                        //console.log('GoogleShoppingAPI: ' + dataGoogleShoppingAPI);
+                        GoogleShoppingAPI.create(dataGoogleShoppingAPI);
+                        // InsertData(GoogleShoppingAPI);
+                    }
+
+                    let dataGoogleShoppingProducts = {
+                        keepa_id: tblKeepa[index].keepa_id, // Replace with actual value
+                        position: response.data.shopping_results[i].position || null,
+                        //product_id: response.data.shopping_results[i].product_id || null,
+                        title: response.data.shopping_results[i].title || null,
+                        seller: response.data.shopping_results[i].seller || null,
+                        link: response.data.shopping_results[i].offers_link || null,
+                        price: response.data.shopping_results[i].price || null,
+                        delivery: response.data.shopping_results[i].delivery || null,
+                        thumbnail: response.data.shopping_results[i].thumbnail || null,
+                    };
+                    Products.create(dataGoogleShoppingProducts);
+                    // console.log('GoogleShoppingProducts: '  + dataGoogleShoppingProducts);
+                    //InsertData(GoogleShoppingProducts);
+
+                    //db.insertGoogleShoppingProducts.create(data);
+                }
+
+                if (length >= 7)
+                    limitedData.push(response.data.shopping_results.slice(0, 7));
+                else limitedData.push(response.data.shopping_results.slice(0, length));
+
+                //add html_url on tblKeepa
+                tblKeepa[index].html_url = response.data.search_metadata.html_url;
+            });
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+        ///PROMISSE ALL ------ends here
+        return limitedData;
+
+    } catch (error) {
+        console.error('Error fetching data:', error.message);
+        throw error;
+    }
+}
+
+
+// async function handleProductsAPI(tblKeepa, productsAPI) {
+//    // console.log('handleProductsAPI - length: ' + tblKeepa.length);
+//     tblKeepa.map((keepaRecord, keepaIndex) => { // Use keepaIndex correctly
+//         productsAPI.map((productRecord, productIndex) => {
+//             console.log('productRecord[productIndex].title ' + productRecord.title);
+//             let emojiX = true;
+//             const avgKeepaPrice = avgPriceKeepa(keepaRecord)
+//             const weightKeepa = getWeight(keepaRecord.Title);
+//             const unitKeepa = getUnitCount(keepaRecord.Title);
+//             if (productRecord[productIndex].title != 'No Results') {
+//                 let check = 0;
+//                 const apiWeigth = getWeight(productsAPI[keepaIndex].title);
+//                 let originalTitle = productsAPI[productIndex].title;
+//                 productsAPI[productIndex].title = " " + productsAPI[productIndex].title;
+//                 let ourPrice = parseFloat(productsAPI[productIndex].price.replace('$', '')) * unitKeepa * 2;
+//                 //check Prices
+//                 if (ourPrice < avgKeepaPrice) {
+//                     productsAPI[productIndex].title = "💵" + productsAPI[productIndex].title;
+//                     check += 1;
+//                 }
+
+//                 if (weightKeepa * 0.75 < apiWeigth && weightKeepa * 1.25 > apiWeigth) {
+//                     productsAPI[productIndex].title = "⚖️" + productsAPI[productIndex].title;
+//                     check += 1;
+//                 }
+//                 //It`s a good product ✅
+//                 if (check === 2)
+//                     productsAPI[productIndex].title = "✅ " + originalTitle;
+
+//                 if ((weightKeepa != null && avgKeepaPrice > 0) && check === 0)
+//                     productsAPI[productIndex].title = "❌" + productsAPI[productIndex].title // Has the information and don't match
+//                 else if (weightKeepa === null || avgKeepaPrice === 0)// IF Doesn't has the information
+//                     if (emojiX) {//We can't check(don't have all info)"⚠️"
+//                         tblKeepa[keepaIndex].Title = "⚠️" + tblKeepa[keepaIndex].Title;//apiRecord.title = "⚠️" + apiRecord.title
+//                         emojiX = false;
+//                     }
+//             }
+//         });
+//     });
+//     //console.log('apishopping - 178 - length: ' + productsAPI.length);
+//     return { tblKeepa, productsAPI };
+// }
 
 function getUnitCount(title) {
     // Regex with improved pattern matching:
@@ -956,7 +1115,7 @@ app.get("/api", function (req, res) {
         "engine": "google_shopping",
         "q": "PS5",
         "location": "Massachusetts, United States",
-        "api_key": process.env.api_key
+        "api_key": process.env.SEARCHAPI_KEY || process.env.API_KEY_LOCAL
     };
 
     axios.get(url)
