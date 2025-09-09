@@ -35,7 +35,7 @@
         .stats-card {
             background: white;
             border-radius: 12px;
-            padding: 1.5rem;
+            /*padding: 1.5rem;*/
             margin-bottom: 1rem;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
@@ -86,41 +86,96 @@
             height: 250px;
             object-fit: cover;
             border-radius: 8px;
-            transition: transform 0.3s ease;
-        }
-
-        .product-image:hover {
-            transform: scale(2);
-        }
-
-        /* Zoom functionality for images */
-        .zoom {
-            margin: 0 auto;
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease;
             cursor: pointer;
         }
 
-        .zoom:hover {
-            transform: scale(8);
+        .product-image:hover {
+            transform: scale(1.05);
         }
 
-        a .zoom:hover {
-            transform: scale(8);
+        /* Clickable image functionality */
+        .zoom {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .zoom:hover {
+            transform: scale(1.05);
+        }
+
+        /* Modal styles */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 999999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .image-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-modal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(0, 0, 0, 0.8);
         }
 
         .shopping-results {
             background: var(--light-bg);
-            padding: 1.5rem;
+            /*padding: 1.5rem;*/
             border-radius: 0 0 12px 12px;
+            overflow: visible;
         }
 
         .result-card {
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 1rem;
             margin-bottom: 1rem;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
         }
 
         .result-card:hover {
@@ -139,6 +194,90 @@
         .result-card.roi-rejected {
             border-left: 4px solid var(--warning-color);
         }
+
+        /* New card layout styles */
+        .card-header-section {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+         
+        }
+
+        .card-image-container {
+            flex-shrink: 0;
+            width: 70px;
+            height: 70px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .badge-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .card-title-section {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .badges-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .badge-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            line-height: 1.3;
+            color: #2c3e50;
+            margin: 0 0 0.5rem 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+
+        .card-title-link {
+            color: #2c3e50;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .card-title-link:hover {
+            color: #3498db;
+            text-decoration: none;
+        }
+
 
         .badge {
             font-size: 0.8rem;
@@ -216,6 +355,98 @@
             background-color: rgba(255, 255, 255, 0.2);
             border-color: rgba(255, 255, 255, 0.3);
         }
+        
+         /* Responsive card layout using Flexbox */
+         .shopping-results .row {
+             display: flex;
+             flex-wrap: wrap;
+             gap: 1rem;
+             align-items: stretch;
+         }
+         
+         .api-result-item {
+             flex: 1 1 320px;
+             min-width: 300px;
+             max-width: 350px;
+             transition: all 0.3s ease;
+         }
+         
+         .api-result-item.hidden {
+             display: none !important;
+         }
+         
+         /* Responsive flex basis */
+         @media (min-width: 576px) {
+             .api-result-item {
+                 flex: 1 1 300px;
+                 min-width: 280px;
+             }
+         }
+         
+         @media (min-width: 768px) {
+             .api-result-item {
+                 flex: 1 1 280px;
+                 min-width: 260px;
+             }
+         }
+         
+         @media (min-width: 992px) {
+             .api-result-item {
+                 flex: 1 1 260px;
+                 min-width: 240px;
+             }
+         }
+         
+         @media (min-width: 1200px) {
+             .api-result-item {
+                 flex: 1 1 240px;
+                 min-width: 220px;
+             }
+         }
+
+         /* Mobile-specific improvements */
+         @media (max-width: 575px) {
+             .api-result-item {
+                 flex: 1 1 100%;
+                 min-width: 100%;
+                 max-width: 100%;
+             }
+             
+             .card-header-section {
+                 gap: 0.5rem;
+             }
+             
+             .card-image-container {
+                 width: 60px;
+                 height: 60px;
+             }
+             
+             .card-title {
+                 font-size: 0.8rem;
+                 -webkit-line-clamp: 2;
+             }
+             
+             .card-title-link {
+                 font-size: 0.8rem;
+             }
+             
+             .badges-container {
+                 gap: 0.25rem;
+             }
+             
+             .badge-column .badge {
+                 font-size: 0.6rem;
+                 padding: 0.2rem 0.3rem;
+             }
+         }
+
+         /* Tablet improvements */
+         @media (min-width: 576px) and (max-width: 991px) {
+             .api-result-item {
+                 flex: 1 1 45%;
+                 min-width: 280px;
+             }
+         }
     </style>
 </head>
 <body>
@@ -230,23 +461,27 @@
                     </h1>
                     <p class="text-muted mb-0 mt-2">Analyze product performance and market opportunities</p>
                     
-                    <!-- Status Bar -->
-                    <div class="mt-3 p-2 bg-light rounded">
-                        <div class="row text-center">
-                            <div class="col-md-4">
-                                <small class="text-muted">Page</small>
-                                <div class="fw-bold text-primary">{{currentPage}} / {{totalPages}}</div>
-                            </div>
-                                                         <div class="col-md-4">
+                                         <!-- Status Bar -->
+                     <div class="mt-3 p-2 bg-light rounded">
+                         <div class="row text-center">
+                             <div class="col-md-3">
+                                 <small class="text-muted">Page</small>
+                                 <div class="fw-bold text-primary">{{currentPage}} / {{totalPages}}</div>
+                             </div>
+                             <div class="col-md-3">
                                  <small class="text-muted">Total Products</small>
                                  <div class="fw-bold text-success">{{totalKeepaProducts}}</div>
                              </div>
-                            <div class="col-md-4">
-                                <small class="text-muted">Load Time</small>
-                                <div class="fw-bold text-info" id="loadTime">Calculating...</div>
-                            </div>
-                        </div>
-                    </div>
+                             <div class="col-md-3">
+                                 <small class="text-muted">Items Found</small>
+                                 <div class="fw-bold text-warning" id="itemsFoundCount">Calculating...</div>
+                             </div>
+                             <div class="col-md-3">
+                                 <small class="text-muted">Load Time</small>
+                                 <div class="fw-bold text-info" id="loadTime">Calculating...</div>
+                             </div>
+                         </div>
+                     </div>
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="d-flex justify-content-end gap-2">
@@ -268,24 +503,21 @@
                     <label for="searchInput" class="form-label">Search Products</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Search by product title..." onkeyup="filterProducts()">
                 </div>
-                <div class="col-md-3">
-                    <label for="statusFilter" class="form-label">AI Status</label>
-                    <select class="form-select" id="statusFilter" onchange="filterProducts()">
-                        <option value="">All Status</option>
-                        <option value="Aprovado">Approved</option>
-                        <option value="Reprovado">Rejected</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="sellerFilter" class="form-label">Seller</label>
-                    <select class="form-select" id="sellerFilter" onchange="filterProducts()">
-                        <option value="">All Sellers</option>
-                        <option value="Amazon">Amazon</option>
-                        <option value="Walmart">Walmart</option>
-                        <option value="Target">Target</option>
-                        <option value="Best Buy">Best Buy</option>
-                    </select>
-                </div>
+                                 <div class="col-md-3">
+                     <label for="titleMatchFilter" class="form-label">Title Match</label>
+                     <select class="form-select" id="titleMatchFilter" onchange="filterProducts()">
+                         <option value="5" selected>+5 (Fair Match)</option>
+                         <option value="">All Matches</option>
+                     </select>
+                 </div>
+                                   <div class="col-md-3">
+                      <label for="itemsFoundFilter" class="form-label">Items Found</label>
+                      <select class="form-select" id="itemsFoundFilter" onchange="handleItemsFoundChange()">
+                          
+                          <option value="1" selected>+1 (Has Results)</option>
+                          <option value="0">0 (No Results)</option>
+                      </select>
+                  </div>
                 <div class="col-md-2">
                     <label class="form-label">&nbsp;</label>
                     <button class="btn btn-primary w-100" onclick="filterProducts()">
@@ -303,9 +535,7 @@
                 <div class="product-header">
                     <div class="row align-items-start">
                         <div class="col-md-2 text-center">
-                            <a href="{{'URL: Amazon'}}" target="_blank">
-                                <img src="{{Image}}" alt="{{Title}}" class="product-image zoom">
-                            </a>
+                            <img src="{{Image}}" alt="{{Title}}" class="product-image zoom">
                         </div>
                         <div class="col-md-10">
                             <h5 class="mb-3">
@@ -411,79 +641,70 @@
                 <div class="shopping-results">
                     <div class="row">
                         {{#if productsAPI}}
-                            {{#each productsAPI}}
-                            {{!-- Temporarily show all products for debugging --}}
-                            <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                        {{#each productsAPI}}
+                        <div class="api-result-item">
                             <div class="result-card {{#if (eq geminiStatus 'Aprovado')}}approved{{else if (eq geminiReason 'Preço muito alto')}}roi-rejected{{else}}rejected{{/if}}"
-                                 data-seller="{{seller}}" data-status="{{geminiStatus}}" style="height: auto;">
-                                <div class="d-flex align-items-start gap-3">
-                                    <!-- Product Image Column -->
-                                    <div class="text-center" style="min-width: 100px;">
-                                        <img src="{{thumbnail}}" alt="{{title}}" class="rounded zoom mb-2" style="width: 70px; height: 70px; object-fit: cover;">
-                                        
-
-                                        
-                                        <!-- AI Response Status - Under Seller -->
-                                        <div class="mb-2">
-                                            {{#if (eq geminiStatus 'Aprovado')}}
-                                                <span class="badge bg-success" style="font-size: 0.65rem;">
-                                                    <i class="fas fa-check me-1"></i>OK
-                                                </span>
-                                                
-                                                <!-- Show title similarity for approved products too -->
-                                                <div class="mt-1">
-                                                    {{#with (titleSimilarity ../Title title)}}
-                                                    <span class="badge {{#if (gte this 8)}}bg-success{{else if (gte this 6)}}bg-warning{{else}}bg-danger{{/if}}" style="font-size: 0.65rem; display: block; text-align: center;">
-                                                        <i class="fas fa-link me-1"></i>Title Match:<br>{{this}}/10
-                                                    </span>
-                                                    {{/with}}
-                                                </div>
-                                            {{else}}
-                                                <span class="badge bg-danger" style="background-color: rgb(199, 137, 143) !important; font-size: 0.65rem; word-wrap: break-word; word-break: keep-all; max-width: 90px; white-space: normal; line-height: 1.1;">
-                                                    <i class="fas fa-times me-1"></i>{{geminiReason}}
-                                                </span>
-                                                
-                                                <div class="mt-1">
-                                                    {{#with (titleSimilarity ../Title title)}}
-                                                    <span class="badge {{#if (gte this 8)}}bg-success{{else if (gte this 6)}}bg-warning{{else}}bg-danger{{/if}}" style="font-size: 0.65rem; display: block; text-align: center;">
-                                                        <i class="fas fa-link me-1"></i>Title Match:<br>{{this}}/10
-                                                    </span>
-                                                    {{/with}}
-                                                </div>
-                                            {{/if}}
-                                        </div>
+                                 data-seller="{{seller}}" data-status="{{geminiStatus}}">
+                                
+                                <!-- Card Header Section -->
+                                <div class="card-header-section">
+                                    <!-- Product Image -->
+                                    <div class="card-image-container">
+                                        <img src="{{thumbnail}}" alt="{{title}}" class="zoom">
                                     </div>
                                     
-                                    <!-- Product Information Column -->
-                                    <div class="flex-grow-1">
-                                        <!-- Title - Most Important -->
-                                        <h6 class="mb-2 fw-bold text-dark" style="word-wrap: break-word; line-height: 1.3; font-size: 0.85rem; max-height: 50px; overflow: hidden;">{{title}}</h6>
+                                    <!-- Title Section -->
+                                    <div class="card-title-section">
+                                        <h6 class="card-title">
+                                            <a href="{{link}}" target="_blank" class="card-title-link">{{title}}</a>
+                                        </h6>
                                         
-                                        <!-- Seller Button - Above Price/Profit -->
-                                        <div class="mb-2">
-                                            <a href="{{link}}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 0.65rem; padding: 0.3rem 0.6rem;">
-                                                <i class="fas fa-shopping-cart me-1"></i>{{seller}}
-                                            </a>
+                                        <!-- Badges Container -->
+                                        <div class="badges-container">
+                                            <!-- Left Column -->
+                                            <div class="badge-column">
+                                                <!-- AI Response Status -->
+                                                {{#if (eq geminiStatus 'Aprovado')}}
+                                                    <span class="badge bg-success" style="font-size: 0.65rem; padding: 0.25rem 0.4rem;">
+                                                        <i class="fas fa-check me-1"></i>OK
+                                                    </span>
+                                                {{else}}
+                                                    <span class="badge bg-danger" style="background-color: rgb(199, 137, 143) !important; font-size: 0.65rem; padding: 0.25rem 0.4rem;">
+                                                        <i class="fas fa-times me-1"></i>{{geminiReason}}
+                                                    </span>
+                                                {{/if}}
+                                                
+                                                <!-- Title Match -->
+                                                {{#with (titleSimilarity ../Title title)}}
+                                                <span class="badge {{#if (gte this 8)}}bg-success{{else if (gte this 6)}}bg-warning{{else}}bg-danger{{/if}}" style="font-size: 0.65rem; padding: 0.25rem 0.4rem;">
+                                                    <i class="fas fa-link me-1"></i>{{this}}/10
+                                                </span>
+                                                {{/with}}
+                                            </div>
+                                            
+                                            <!-- Right Column -->
+                                            <div class="badge-column">
+                                                <!-- Price Badge -->
+                                                <span class="badge bg-primary" style="font-size: 0.65rem; padding: 0.25rem 0.4rem;">
+                                                    <i class="fas fa-dollar-sign me-1"></i>{{price}}
+                                                </span>
+                                                
+                                                <!-- Profit Badge -->
+                                                {{#if price}}
+                                                {{#with (calculateProfitability ../ price)}}
+                                                <span class="badge {{#if isProfitable}}bg-success{{else}}bg-danger{{/if}}" style="font-size: 0.65rem; padding: 0.25rem 0.4rem;">
+                                                    <i class="fas {{#if isProfitable}}fa-arrow-up{{else}}fa-arrow-down{{/if}} me-1"></i>
+                                                    ${{profit}}
+                                                </span>
+                                                {{/with}}
+                                                {{/if}}
+                                            </div>
                                         </div>
-                                        
-                                                                                 <!-- Price, Profit Row -->
-                                         <div class="d-flex flex-column gap-1">
-                                             <span class="badge bg-primary" style="font-size: 0.75rem;">${{price}}</span>
-                                             
-                                             {{#if price}}
-                                             {{#with (calculateProfitability ../ price)}}
-                                             <span class="badge {{#if isProfitable}}bg-success{{else}}bg-danger{{/if}}" style="font-size: 0.65rem;">
-                                                 <i class="fas {{#if isProfitable}}fa-arrow-up{{else}}fa-arrow-down{{/if}} me-1"></i>
-                                                 ${{profit}}
-                                             </span>
-                                             {{/with}}
-                                             {{/if}}
-                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            </div>
-                            {{/each}}
+                        </div>
+                        {{/each}}
                         {{else}}
                             <div class="col-12">
                                 <div class="alert alert-info text-center">
@@ -560,49 +781,211 @@
         </nav>
     </div>
 
+    <!-- Image Modal -->
+    <div id="imageModal" class="image-modal">
+        <div class="image-modal-content">
+            <span class="image-modal-close">&times;</span>
+            <img id="modalImage" src="" alt="">
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Search and Filter Functionality
-        function filterProducts() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            const sellerFilter = document.getElementById('sellerFilter').value;
-            
-            const productCards = document.querySelectorAll('.product-card');
-            
-            productCards.forEach(card => {
-                const title = card.querySelector('h5').textContent.toLowerCase();
-                const resultCards = card.querySelectorAll('.result-card');
-                let hasVisibleResults = false;
-                
-                resultCards.forEach(resultCard => {
-                    const seller = resultCard.dataset.seller.toLowerCase();
-                    const status = resultCard.dataset.status.toLowerCase();
-                    
-                    const matchesSearch = title.includes(searchTerm);
-                    const matchesStatus = !statusFilter || status.includes(statusFilter);
-                    const matchesSeller = !sellerFilter || seller.includes(sellerFilter);
-                    
-                    if (matchesSearch && matchesStatus && matchesSeller) {
-                        resultCard.style.display = 'block';
-                        hasVisibleResults = true;
-                    } else {
-                        resultCard.style.display = 'none';
-                    }
-                });
-                
-                card.style.display = hasVisibleResults || !searchTerm ? 'block' : 'none';
-            });
-        }
+                 // Handle Items Found filter change
+         function handleItemsFoundChange() {
+             const itemsFoundFilter = document.getElementById('itemsFoundFilter').value;
+             const titleMatchFilter = document.getElementById('titleMatchFilter');
+             
+             // If Items Found is set to "0 (No Results)", automatically set Title Match to "All Matches"
+             if (itemsFoundFilter === '0') {
+                 titleMatchFilter.value = '';
+             } else if (itemsFoundFilter === '1') {
+                 // If switching back to "+1 (Has Results)", set Title Match back to default "+5 (Fair Match)"
+                 titleMatchFilter.value = '5';
+             }
+             
+             // Apply the filters
+             filterProducts();
+         }
+         
+         // Calculate and display Items Found count
+         function calculateItemsFound() {
+             const productCards = document.querySelectorAll('.product-card');
+             let keepaTitlesWithResults = 0;
+             let totalKeepaProducts = 0;
+             
+             productCards.forEach(card => {
+                 // Only count visible cards (not hidden by filters)
+                 if (card.style.display !== 'none') {
+                     const resultCards = card.querySelectorAll('.result-card');
+                     // Count this Keepa title if it has at least 1 visible API result
+                     let hasVisibleResults = false;
+                     resultCards.forEach(resultCard => {
+                         if (resultCard.style.display !== 'none') {
+                             hasVisibleResults = true;
+                         }
+                     });
+                     
+                     if (hasVisibleResults) {
+                         keepaTitlesWithResults++;
+                     }
+                     totalKeepaProducts++;
+                 }
+             });
+             
+             const itemsFoundElement = document.getElementById('itemsFoundCount');
+             if (itemsFoundElement) {
+                 itemsFoundElement.textContent = `${keepaTitlesWithResults} / ${totalKeepaProducts}`;
+             }
+         }
+         
+         // Search and Filter Functionality
+         function filterProducts() {
+             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+             const titleMatchFilter = document.getElementById('titleMatchFilter').value;
+             const itemsFoundFilter = document.getElementById('itemsFoundFilter').value;
+             
+             const productCards = document.querySelectorAll('.product-card');
+             
+             productCards.forEach(card => {
+                 const title = card.querySelector('h5').textContent.toLowerCase();
+                 const resultCards = card.querySelectorAll('.result-card');
+                 const noResultsMessage = card.querySelector('.alert-info');
+                 
+                 // Check if product has API results
+                 const hasApiResults = resultCards.length > 0;
+                 const itemsFoundCount = hasApiResults ? resultCards.length : 0;
+                 
+                                                     // Apply filters
+                  let showCard = true;
+                  
+                  // Search filter
+                  if (searchTerm && !title.toLowerCase().includes(searchTerm)) {
+                      showCard = false;
+                  }
+                  
+                  // Items Found filter
+                  if (itemsFoundFilter === '1' && itemsFoundCount === 0) {
+                      showCard = false;
+                  } else if (itemsFoundFilter === '0' && itemsFoundCount > 0) {
+                      showCard = false;
+                  }
+                  
+                  // Show/hide the card based on search and items found filters
+                  card.style.display = showCard ? 'block' : 'none';
+                  
+                                     // Title Match filter - Check if any results meet the criteria
+                   let hasAnyVisibleResults = false;
+                   
+                   if (titleMatchFilter === '5') {
+                       resultCards.forEach(resultCard => {
+                           const titleMatchBadges = resultCard.querySelectorAll('.badge');
+                           let hasGoodScore = false;
+                           
+                           titleMatchBadges.forEach(badge => {
+                               const matchText = badge.textContent;
+                               const match = matchText.match(/(\d+)\s*\/\s*10/);
+                               if (match) {
+                                   const matchScore = parseInt(match[1]);
+                                   if (matchScore >= 5) {
+                                       hasGoodScore = true;
+                                   }
+                               }
+                           });
+                           
+                           // Hide individual result cards with scores below 5
+                           if (!hasGoodScore) {
+                               resultCard.style.display = 'none';
+                               resultCard.style.visibility = 'hidden';
+                               resultCard.style.position = 'absolute';
+                               // Hide the parent container
+                               const parentItem = resultCard.closest('.api-result-item');
+                               if (parentItem) {
+                                   parentItem.classList.add('hidden');
+                               }
+                           } else {
+                               resultCard.style.display = 'block';
+                               resultCard.style.visibility = 'visible';
+                               resultCard.style.position = 'relative';
+                               // Show the parent container
+                               const parentItem = resultCard.closest('.api-result-item');
+                               if (parentItem) {
+                                   parentItem.classList.remove('hidden');
+                               }
+                               hasAnyVisibleResults = true;
+                           }
+                       });
+                   } else if (titleMatchFilter === '0') {
+                       resultCards.forEach(resultCard => {
+                           const titleMatchBadges = resultCard.querySelectorAll('.badge');
+                           let hasZeroScore = false;
+                           
+                           titleMatchBadges.forEach(badge => {
+                               const matchText = badge.textContent;
+                               const match = matchText.match(/(\d+)\s*\/\s*10/);
+                               if (match) {
+                                   const matchScore = parseInt(match[1]);
+                                   if (matchScore === 0) {
+                                       hasZeroScore = true;
+                                   }
+                               }
+                           });
+                           
+                           // Show only result cards with score 0
+                           if (hasZeroScore) {
+                               resultCard.style.display = 'block';
+                               resultCard.style.visibility = 'visible';
+                               resultCard.style.position = 'relative';
+                               // Show the parent container
+                               const parentItem = resultCard.closest('.api-result-item');
+                               if (parentItem) {
+                                   parentItem.classList.remove('hidden');
+                               }
+                               hasAnyVisibleResults = true;
+                           } else {
+                               resultCard.style.display = 'none';
+                               resultCard.style.visibility = 'hidden';
+                               resultCard.style.position = 'absolute';
+                               // Hide the parent container
+                               const parentItem = resultCard.closest('.api-result-item');
+                               if (parentItem) {
+                                   parentItem.classList.add('hidden');
+                               }
+                           }
+                       });
+                   } else {
+                       // Show all result cards when filter is "All Matches"
+                       resultCards.forEach(resultCard => {
+                           resultCard.style.display = 'block';
+                           resultCard.style.visibility = 'visible';
+                           resultCard.style.position = 'relative';
+                           // Show the parent container
+                           const parentItem = resultCard.closest('.api-result-item');
+                           if (parentItem) {
+                               parentItem.classList.remove('hidden');
+                           }
+                           hasAnyVisibleResults = true;
+                       });
+                   }
+                   
+                   // If no results are visible and we're filtering by title match, hide the entire card
+                   if (titleMatchFilter === '5' && !hasAnyVisibleResults && hasApiResults) {
+                       card.style.display = 'none';
+                   }
+             });
+             
+             // Recalculate Items Found count after filtering
+             calculateItemsFound();
+         }
 
-        function clearFilters() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('statusFilter').value = '';
-            document.getElementById('sellerFilter').value = '';
-            filterProducts();
-        }
+                 function clearFilters() {
+             document.getElementById('searchInput').value = '';
+             document.getElementById('titleMatchFilter').value = '';
+             document.getElementById('itemsFoundFilter').value = '';
+             filterProducts();
+         }
 
         // Export functionality
         function exportData() {
@@ -648,21 +1031,67 @@
             window.URL.revokeObjectURL(url);
         }
 
-        // Initialize tooltips
-        document.addEventListener('DOMContentLoaded', function() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-            
-                         // Calculate and display load time in seconds
+                 // Image Modal functionality
+         function openImageModal(imageSrc, imageAlt) {
+             const modal = document.getElementById('imageModal');
+             const modalImage = document.getElementById('modalImage');
+             modalImage.src = imageSrc;
+             modalImage.alt = imageAlt;
+             modal.style.display = 'block';
+             document.body.style.overflow = 'hidden'; // Prevent background scrolling
+         }
+
+         function closeImageModal() {
+             const modal = document.getElementById('imageModal');
+             modal.style.display = 'none';
+             document.body.style.overflow = 'auto'; // Restore scrolling
+         }
+
+         // Initialize tooltips
+         document.addEventListener('DOMContentLoaded', function() {
+             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+             tooltipTriggerList.map(function (tooltipTriggerEl) {
+                 return new bootstrap.Tooltip(tooltipTriggerEl);
+             });
+             
+             // Calculate and display load time in seconds
              const loadTimeElement = document.getElementById('loadTime');
              if (loadTimeElement) {
                  const loadTime = performance.now();
                  const loadTimeSeconds = (loadTime / 1000).toFixed(2);
                  loadTimeElement.textContent = loadTimeSeconds + 's';
              }
-        });
+             
+                           // Calculate and display Items Found count
+              calculateItemsFound();
+              
+              // Apply default filter (Title Match 5+)
+              filterProducts();
+
+              // Add click event listeners to all zoom images
+              document.querySelectorAll('.zoom').forEach(function(img) {
+                  img.addEventListener('click', function() {
+                      openImageModal(this.src, this.alt);
+                  });
+              });
+
+              // Close modal when clicking the X button
+              document.querySelector('.image-modal-close').addEventListener('click', closeImageModal);
+
+              // Close modal when clicking outside the image
+              document.getElementById('imageModal').addEventListener('click', function(e) {
+                  if (e.target === this) {
+                      closeImageModal();
+                  }
+              });
+
+              // Close modal with Escape key
+              document.addEventListener('keydown', function(e) {
+                  if (e.key === 'Escape') {
+                      closeImageModal();
+                  }
+              });
+         });
     </script>
 </body>
-</html>
+</html></html>

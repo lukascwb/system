@@ -298,45 +298,36 @@ function improveKeepaTitleForSearch(keepaTitle) {
     
     let improvedTitle = keepaTitle;
     
-    // 1. Remove generic "Pack of X" phrases
+    // 1. Remove ONLY specific packaging information (multi-pack details)
     const packPatterns = [
-        /\s*\(Pack\s+of\s+\d+\)/gi,
-        /\s*\(Pack\s+Of\s+\d+\)/gi,
-        /\s*\(\d+\s+twin\s+packs\)/gi,
-        /\s*\(\d+\s+Biscuits?\s+Per\s+Pack\)/gi,
-        /\s*-\s*\d+\s*Pack/gi,
-        /\s*-\s*Bulk\s+Pack\s+of\s+\d+/gi,
-        /\s*-\s*Pack\s+Of\s+\d+/gi,
-        /\s*\(\d+\s+Count\)/gi,
-        /\s*\(\d+\s+ct\)/gi
+        /\s*\(Pack\s+of\s+\d+\)/gi,           // (Pack of 20)
+        /\s*\(Pack\s+Of\s+\d+\)/gi,           // (Pack Of 20)
+        /\s*\(\d+\s+Value\s+Size\s+Bags?\)/gi, // (3 Value Size Bags)
+        /\s*\(\d+\s+Pack\)/gi,                // (10 Pack)
+        /\s*\(\d+\s+Packs?,\s*\d+\.\d+\s*oz\)/gi, // (20 Packs, 0.67 oz)
+        /\s*\(\d+\s+Pack\s+x\s+\d+\s*oz\s*\(Total\s+\d+oz\)\)/gi, // (4-Pack x 7 oz (Total 28oz))
+        /\s*\(\d+\s+Pack\s+x\s+\d+\s*oz\)/gi, // (4-Pack x 7 oz)
+        /\s*\(\d+\s+Count\)/gi,               // (20 Count)
+        /\s*\(\d+\s+ct\)/gi,                  // (20 ct)
+        /\s*\(\d+\s+twin\s+packs\)/gi,        // (2 twin packs)
+        /\s*\(\d+\s+Biscuits?\s+Per\s+Pack\)/gi, // (2 Biscuits Per Pack)
+        /\s*-\s*\d+\s*Pack/gi,                // - 10 Pack
+        /\s*-\s*Bulk\s+Pack\s+of\s+\d+/gi,    // - Bulk Pack of 20
+        /\s*-\s*Pack\s+Of\s+\d+/gi,           // - Pack Of 20
+        /\s*\(\d+\s+Individually\s+Wrapped\s*\(\d+\)\)/gi, // (20 Individually Wrapped (1))
     ];
     
     packPatterns.forEach(pattern => {
         improvedTitle = improvedTitle.replace(pattern, '');
     });
     
-    // 2. Remove excessive marketing fluff and descriptions
-    const marketingPatterns = [
-        /\s*Crispy\s+Wafer\s+Texture[^,]*/gi,
-        /\s*Peanut\s+Butter\s+Layers?\s*&\s*Chocolate\s+Coating[^,]*/gi,
-        /\s*No\s+Artificial\s+Flavors[^,]*/gi,
-        /\s*No\s+High\s+Fructose\s+Corn\s+Syrup[^,]*/gi,
-        /\s*High\s+Protein[^,]*/gi,
-        /\s*Low\s+Carb[^,]*/gi,
-        /\s*Gluten\s+Free[^,]*/gi,
-        /\s*Keto-Friendly[^,]*/gi,
-        /\s*Organic[^,]*/gi,
-        /\s*Non-GMO[^,]*/gi,
-        /\s*Fair\s+Trade[^,]*/gi,
-        /\s*Plant\s+Based[^,]*/gi,
-        /\s*Vegan[^,]*/gi,
-        /\s*Kosher[^,]*/gi,
-        /\s*Crunchy[^,]*/gi,
-        /\s*Healthy[^,]*/gi,
-        /\s*Snacking[^,]*/gi
+    // 2. Remove ONLY total weight information for multi-packs
+    const totalWeightPatterns = [
+        /\s*\(Total\s+\d+oz\)/gi,             // (Total 28oz)
+        /\s*\(Total\s+\d+\.\d+oz\)/gi,        // (Total 28.5oz)
     ];
     
-    marketingPatterns.forEach(pattern => {
+    totalWeightPatterns.forEach(pattern => {
         improvedTitle = improvedTitle.replace(pattern, '');
     });
     
@@ -363,7 +354,7 @@ function isApprovedSeller(seller) {
         'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
         'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
         'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
-        'Target', 'VitaCost', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
+        'Target', 'VitaCost.com','VitaCost','Instacart', 'Walmart', 'Walgreens', 'WebstaurantStore.com'
     ];
     
     const normalizedSeller = seller.trim();
@@ -487,7 +478,7 @@ function filterAndPrioritizeResults(shoppingResults, keepaRecord) {
             'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
             'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
             'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
-            'Target', 'VitaCost', 'Walmart', 'Walgreens.com', 'WebstaurantStore.com', 'Walgreens'
+            'Target', 'VitaCost.com','VitaCost','Instacart', 'Walmart', 'Walgreens.com', 'WebstaurantStore.com', 'Walgreens'
         ];
         if (highValueSellers.some(seller => result.seller && result.seller.includes(seller))) {
             score += 20;
@@ -536,7 +527,7 @@ function analyzeApiResponseForApprovedSellers(apiResponse) {
         'Dollar General', 'Dollar Tree', 'Family Dollar', 'GameStop', 'Five Below', 
         'The Home Depot', 'Kohl\'s', 'Lowe\'s', 'Macy\'s', 'Michael\'s', 'PetSmart', 
         'Rite Aid', 'Rhode Island Novelty', 'Sam\'s Club', 'Shaw\'s', 'Staples', 'Stop&Shop', 
-        'Target', 'VitaCost', 'Walmart', 'Walgreens.com', 'WebstaurantStore.com', 'Walgreens'
+        'Target', 'VitaCost.com','VitaCost','Instacart', 'Walmart', 'Walgreens.com', 'WebstaurantStore.com', 'Walgreens'
     ];
     
     const analysisResults = [];

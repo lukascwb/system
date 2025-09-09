@@ -643,8 +643,8 @@ app.get('/generate', authenticate, async function (req, res) {
   });
   
 */
-const ITEMS_PER_PAGE = 10; // Total items per page
-const INITIAL_LOAD = 10 ; // Load all items per page (original behavior)
+const ITEMS_PER_PAGE = 50; // Total items per page
+const INITIAL_LOAD = 50 ; // Load all items per page (original behavior)
 
 // Utility function to clean and parse prices from CSV (handles European format with commas)
 function cleanAndParsePrice(priceString) {
