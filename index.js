@@ -405,102 +405,147 @@ app.get("/", authenticate, function (req, res) {
 
 app.get('/list', authenticate, async (req, res) => {
     try {
-        // Get keepa records with creation date
+        const startTime = Date.now();
+        
+        // Add pagination parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20; // Show 20 keepa_ids per page
+        const offset = (page - 1) * limit;
+
+        // OPTIMIZATION 1: Single query to get keepa_ids with basic stats
         const keepaRecords = await KeepaCSV.findAll({
-            attributes: ['keepa_id', [sequelize.fn('max', sequelize.col('createdAt')), 'max_created']],
+            attributes: [
+                'keepa_id', 
+                [sequelize.fn('max', sequelize.col('createdAt')), 'max_created'],
+                [sequelize.fn('count', sequelize.col('id')), 'totalProducts'],
+                [sequelize.fn('count', sequelize.literal('CASE WHEN `New: Current` IS NOT NULL AND `New: Current` != "" AND `New: Current` != "-" THEN 1 END')), 'productsWithPrices'],
+                [sequelize.fn('count', sequelize.literal('CASE WHEN `Sales Rank: Current` IS NOT NULL AND `Sales Rank: Current` != "" AND `Sales Rank: Current` != "-" AND `Sales Rank: Current` != 0 THEN 1 END')), 'profitableProducts'],
+                [sequelize.fn('count', sequelize.literal('CASE WHEN `Sales Rank: Current` IS NOT NULL AND `Sales Rank: Current` != "" AND `Sales Rank: Current` != "-" AND `Sales Rank: Current` != 0 AND CAST(`Sales Rank: Current` AS UNSIGNED) <= 10000 THEN 1 END')), 'highRankProducts']
+            ],
             group: ['keepa_id'],
-            order: [[sequelize.literal('max_created'), 'DESC']]
+            order: [[sequelize.literal('max_created'), 'DESC']],
+            limit: limit,
+            offset: offset
         });
 
-        // Get detailed statistics for each keepa_id
-        const keepaStats = await Promise.all(
-            keepaRecords.map(async (record) => {
-                const keepaId = record.keepa_id;
-                
-                // Get total products count for this keepa_id
-                const { count: totalProducts } = await KeepaCSV.findAndCountAll({
-                    where: { keepa_id: keepaId }
-                });
+        // OPTIMIZATION 2: Single query to get API analysis data for all keepa_ids
+        const keepaIds = keepaRecords.map(record => record.keepa_id);
+        const apiDataMap = {};
+        
+        if (keepaIds.length > 0) {
+            const apiData = await apishopping.Api.findAll({
+                where: { keepa_id: { [Op.in]: keepaIds } },
+                attributes: ['keepa_id', 'id']
+            });
+            
+            // Create a map for quick lookup
+            apiData.forEach(api => {
+                apiDataMap[api.keepa_id] = api.id;
+            });
+        }
 
-                // Get products with valid prices (for profitability analysis)
-                const productsWithPrices = await KeepaCSV.findAll({
-                    where: {
-                        keepa_id: keepaId,
-                        'New: Current': {
-                            [Op.not]: [null, '', '-']
-                        }
-                    },
-                    attributes: ['Title', 'New: Current', 'Buy Box: Current']
-                });
-
-                // Calculate average price
-                let avgPrice = 0;
-                let validPriceCount = 0;
-                productsWithPrices.forEach(product => {
-                    const price = parseFloat(product['New: Current']);
-                    if (!isNaN(price) && price > 0) {
-                        avgPrice += price;
-                        validPriceCount++;
-                    }
-                });
-                avgPrice = validPriceCount > 0 ? (avgPrice / validPriceCount).toFixed(2) : 0;
-
-                // Get API analysis data if available
-                const apiData = await apishopping.Api.findOne({
-                    where: { keepa_id: keepaId }
-                });
-
-                let analyzedProducts = 0;
-                if (apiData) {
-                    const products = await apishopping.Products.findAll({
-                        where: { api_id: apiData.id }
-                    });
-                    analyzedProducts = products.length;
+        // OPTIMIZATION 3: Single query to get analyzed products count for all keepa_ids
+        const analyzedProductsMap = {};
+        if (Object.keys(apiDataMap).length > 0) {
+            const apiIds = Object.values(apiDataMap);
+            const analyzedProducts = await apishopping.Products.findAll({
+                where: { api_id: { [Op.in]: apiIds } },
+                attributes: [
+                    'api_id',
+                    [sequelize.fn('count', sequelize.col('id')), 'count']
+                ],
+                group: ['api_id']
+            });
+            
+            // Create reverse map from api_id to keepa_id
+            const apiIdToKeepaId = {};
+            Object.entries(apiDataMap).forEach(([keepaId, apiId]) => {
+                apiIdToKeepaId[apiId] = keepaId;
+            });
+            
+            analyzedProducts.forEach(result => {
+                const keepaId = apiIdToKeepaId[result.api_id];
+                if (keepaId) {
+                    analyzedProductsMap[keepaId] = parseInt(result.dataValues.count);
                 }
+            });
+        }
 
-                // Calculate analysis percentage
-                const analysisPercentage = totalProducts > 0 ? Math.round((analyzedProducts / totalProducts) * 100) : 0;
-
-                // Get additional important statistics
-                const profitableProducts = await KeepaCSV.findAll({
-                    where: {
-                        keepa_id: keepaId,
-                        'Sales Rank: Current': {
-                            [Op.not]: [null, '', '-', 0]
-                        }
+        // OPTIMIZATION 4: Single query to get average prices for all keepa_ids
+        const avgPriceMap = {};
+        if (keepaIds.length > 0) {
+            const avgPrices = await KeepaCSV.findAll({
+                where: {
+                    keepa_id: { [Op.in]: keepaIds },
+                    'New: Current': {
+                        [Op.not]: [null, '', '-']
                     }
-                });
+                },
+                attributes: [
+                    'keepa_id',
+                    [sequelize.fn('avg', sequelize.literal('CAST(REPLACE(REPLACE(`New: Current`, "$", ""), ",", ".") AS DECIMAL(10,2))')), 'avgPrice']
+                ],
+                group: ['keepa_id']
+            });
+            
+            avgPrices.forEach(result => {
+                avgPriceMap[result.keepa_id] = parseFloat(result.dataValues.avgPrice || 0).toFixed(2);
+            });
+        }
 
-                const highRankProducts = profitableProducts.filter(product => {
-                    const salesRank = parseInt(product['Sales Rank: Current']);
-                    return !isNaN(salesRank) && salesRank > 0 && salesRank <= 10000;
-                });
+        // OPTIMIZATION 5: Build final stats array
+        const keepaStats = keepaRecords.map(record => {
+            const keepaId = record.keepa_id;
+            const totalProducts = parseInt(record.dataValues.totalProducts);
+            const analyzedProducts = analyzedProductsMap[keepaId] || 0;
+            
+            return {
+                keepa_id: keepaId,
+                totalProducts: totalProducts,
+                productsWithPrices: parseInt(record.dataValues.productsWithPrices),
+                avgPrice: avgPriceMap[keepaId] || '0.00',
+                analyzedProducts: analyzedProducts,
+                analysisPercentage: totalProducts > 0 ? Math.round((analyzedProducts / totalProducts) * 100) : 0,
+                highRankProducts: parseInt(record.dataValues.highRankProducts),
+                lastUpdated: record.dataValues.max_created,
+                hasApiData: !!apiDataMap[keepaId]
+            };
+        });
 
-                return {
-                    keepa_id: keepaId,
-                    totalProducts: totalProducts,
-                    productsWithPrices: productsWithPrices.length,
-                    avgPrice: avgPrice,
-                    analyzedProducts: analyzedProducts,
-                    analysisPercentage: analysisPercentage,
-                    highRankProducts: highRankProducts.length,
-                    lastUpdated: record.dataValues.max_created,
-                    hasApiData: !!apiData
-                };
-            })
-        );
+        // OPTIMIZATION 6: Get total count for pagination (separate query)
+        const { count: totalKeepaIds } = await KeepaCSV.findAndCountAll({
+            attributes: ['keepa_id'],
+            group: ['keepa_id']
+        });
 
         // Calculate overall statistics
-        const totalKeepaIds = keepaStats.length;
         const totalProducts = keepaStats.reduce((sum, stat) => sum + stat.totalProducts, 0);
         const totalAnalyzed = keepaStats.reduce((sum, stat) => sum + stat.analyzedProducts, 0);
+
+        // Pagination info
+        const totalPages = Math.ceil(totalKeepaIds.length / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        const endTime = Date.now();
+        const processingTime = ((endTime - startTime) / 1000).toFixed(2);
+
+        console.log(`List page loaded in ${processingTime}s - Page ${page}/${totalPages}`);
 
         // Send enhanced data to the client
         res.render('list', { 
             keepaStats: keepaStats,
-            totalKeepaIds: totalKeepaIds,
+            totalKeepaIds: totalKeepaIds.length,
             totalProducts: totalProducts,
-            totalAnalyzed: totalAnalyzed
+            totalAnalyzed: totalAnalyzed,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                hasNextPage: hasNextPage,
+                hasPrevPage: hasPrevPage,
+                limit: limit
+            },
+            processingTime: processingTime
         });
     } catch (error) {
         console.error('Error:', error);
