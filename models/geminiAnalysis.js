@@ -99,25 +99,65 @@ For each product in the shopping results:
 
 async function analyzeTitles(keepaTitle, productTitle) {
     try {
-        const prompt = `Analise se os dois títulos de produtos se referem ao mesmo produto:
+        // First, do a quick rule-based check for obvious matches
+        const ruleBasedResult = quickRuleBasedMatch(keepaTitle, productTitle);
+        if (ruleBasedResult.status === "Aprovado") {
+            console.log('Rule-based match found - skipping AI analysis');
+            return {
+                status: ruleBasedResult.status,
+                reason: ruleBasedResult.reason,
+                confidenceScore: 10 // High confidence for rule-based matches
+            };
+        }
+        
+        // If rule-based check fails, use AI for more complex analysis
+        console.log('Rule-based check failed - using AI analysis');
+        
+        const prompt = `Analise se os dois títulos de produtos se referem ao EXATO mesmo produto:
 
 Título do Keepa: "${keepaTitle}"
 Título do Produto: "${productTitle}"
 
-REGRAS RIGOROSAS:
+REGRAS RIGOROSAS PARA APROVAÇÃO:
 
-APROVE APENAS se:
-- For EXATAMENTE o mesmo produto ou variação mínima (mesma marca, mesmo modelo, apenas tamanho/cor diferente)
-- E o modelo, estilo, cor, sabor, etc., forem EXATAMENTE os mesmos entre Keepa e Shopping
+APROVE APENAS se TODOS os critérios forem atendidos EXATAMENTE:
+1. MESMA MARCA (exato match, incluindo variações de escrita)
+2. MESMO NOME/MODELO PRINCIPAL (exato match)
+3. MESMA CONCENTRAÇÃO/POTÊNCIA (se aplicável)
+4. MESMO TAMANHO/QUANTIDADE (exato match, incluindo unidades)
+5. MESMA FORMA/APRESENTAÇÃO (líquido, cápsula, pó, shake, etc.)
+6. MESMAS ESPECIFICAÇÕES TÉCNICAS (se aplicável)
+7. MESMOS INGREDIENTES PRINCIPAIS (se especificados)
+8. MESMA EMBALAGEM/QUANTIDADE POR PACOTE
 
-REPROVE se:
-- Marca diferente (ex: 3M vs Filtrete)
-- Modelo diferente (ex: "Allergen Defense" vs "Ultimate Allergen")
-- Produto completamente diferente
-- Modelo, estilo, cor, sabor, etc., são diferentes entre Keepa e Shopping
+EXEMPLOS DE REPROVAÇÃO:
+- "Slimfast High Protein Ready to Drink Creamy Chocolate 11oz 12ct" vs "Nutrition Plan High Protein Chocolate 30g Shake 11.5fl.oz 12 Pack" → REPROVADO (produtos diferentes)
+- "Energy Boost 70 Fulvic Minerals" vs "Energy Boost 70 Concentrate" → REPROVADO (produtos diferentes)
+- "Vitamin C 1000mg 60 tablets" vs "Vitamin C 1000mg 120 tablets" → REPROVADO (produtos diferentes)
+- "Protein Powder Vanilla 2lb" vs "Protein Powder Chocolate 2lb" → REPROVADO (produtos diferentes)
+- "Omega-3 1000mg Fish Oil" vs "Omega-3 1000mg Flaxseed Oil" → REPROVADO (produtos diferentes)
+- "Multivitamin Men 50+" vs "Multivitamin Women 50+" → REPROVADO (produtos diferentes)
+- "Protein Shake Chocolate 12oz" vs "Protein Shake Chocolate 16oz" → REPROVADO (produtos diferentes)
+- "Organic Green Tea 100 bags" vs "Green Tea 100 bags" → REPROVADO (produtos diferentes)
 
-Responda APENAS com "Aprovado" ou "Reprovado|motivo" (exemplo: "Reprovado|Marca diferente" ou "Reprovado|Modelo diferente").
-O motivo deve ser objetivo e máximo 2 palavras.`;
+EXEMPLOS DE APROVAÇÃO:
+- "Vitamin D3 2000IU 60 Softgels" vs "Vitamin D3 2000IU 60 Softgels" → APROVADO
+- "Protein Powder Vanilla 2lb" vs "Protein Powder Vanilla 2lb" → APROVADO
+
+IMPORTANTE: 
+- Qualquer diferença em marca, tamanho, sabor, cor, especificação, formato, etc. = PRODUTO DIFERENTE
+- Apenas produtos IDÊNTICOS são aprovados
+
+Responda APENAS com o formato: "STATUS|motivo|confiança" onde:
+- STATUS: "Aprovado" ou "Reprovado"
+- motivo: "Diferente" (para qualquer diferença) ou deixe vazio para aprovado
+- confiança: número de 0 a 10 (0 = muito incerto, 10 = completamente certo)
+
+Exemplos de resposta:
+- "Aprovado||10" (para matches perfeitos)
+- "Reprovado|Diferente|9" (muito confiante na rejeição)
+- "Reprovado|Diferente|7" (confiante mas não 100%)
+- "Reprovado|Diferente|4" (pouco confiante)`;
 
         // Usa a chave do GitHub em produção, senão usa do .env local
         const API_KEY = process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY_LOCAL;
@@ -161,35 +201,224 @@ O motivo deve ser objetivo e máximo 2 palavras.`;
         const result = data.candidates[0].content.parts[0].text.trim();
         console.log('Gemini Raw Result:', `"${result}"`);
         
-        // Parse the result to extract status and reason
-        let finalStatus, finalReason;
-        if (result === "Aprovado") {
-            finalStatus = "Aprovado";
-            finalReason = null;
-        } else if (result.includes("|")) {
+        // Parse the result to extract status, reason, and confidence score
+        let finalStatus, finalReason, confidenceScore;
+        
+        if (result.includes("|")) {
             const parts = result.split("|");
-            finalStatus = "Reprovado";
-            finalReason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+            const status = parts[0] ? parts[0].trim() : "Reprovado";
+            const reason = parts[1] ? parts[1].trim() : "Motivo não especificado";
+            const confidence = parts[2] ? parseInt(parts[2].trim()) : 5; // Default to 5 if not provided
+            
+            // Validate confidence score
+            confidenceScore = Math.max(0, Math.min(10, confidence)); // Clamp between 0-10
+            
+            if (status === "Aprovado") {
+                finalStatus = "Aprovado";
+                finalReason = null;
+            } else {
+                // Check if the reason is about size and if the product title doesn't specify size
+                if (reason.toLowerCase().includes("tamanho") || reason.toLowerCase().includes("size")) {
+                    const keepaHasSize = hasSizeSpecification(keepaTitle);
+                    const productHasSize = hasSizeSpecification(productTitle);
+                    
+                    // If Keepa has size but product doesn't, mark as "Sem Tamanho"
+                    if (keepaHasSize && !productHasSize) {
+                        finalStatus = "Sem Tamanho";
+                        finalReason = "Sem Tamanho";
+                    } else {
+                        finalStatus = "Reprovado";
+                        finalReason = reason;
+                    }
+                } else {
+                    finalStatus = "Reprovado";
+                    finalReason = reason;
+                }
+            }
         } else {
-            finalStatus = "Reprovado";
-            finalReason = "Análise falhou";
+            // Fallback for old format responses
+            if (result === "Aprovado") {
+                finalStatus = "Aprovado";
+                finalReason = null;
+                confidenceScore = 8; // Default confidence for approved
+            } else {
+                finalStatus = "Reprovado";
+                finalReason = "Análise falhou";
+                confidenceScore = 3; // Low confidence for failed analysis
+            }
         }
         
         console.log('Gemini Final Status:', finalStatus);
         console.log('Gemini Final Reason:', finalReason);
+        console.log('Gemini Confidence Score:', confidenceScore);
         
         return {
             status: finalStatus,
-            reason: finalReason
+            reason: finalReason,
+            confidenceScore: confidenceScore
         };
 
     } catch (error) {
         console.error("Error analyzing titles with Gemini:", error);
         return {
             status: "Reprovado",
-            reason: "Erro na análise"
+            reason: "Erro na análise",
+            confidenceScore: 1 // Very low confidence for errors
         };
     }
+}
+
+// Function to check if a title has size/weight specifications
+function hasSizeSpecification(title) {
+    if (!title) return false;
+    
+    // Common size/weight patterns
+    const sizePatterns = [
+        /\b\d+(?:\.\d+)?\s*(?:oz|ounce|ounces|fl\.?\s*oz|fl\.?\s*ounce|fl\.?\s*ounces)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:g|gram|grams)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:lb|lbs|pound|pounds)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:kg|kilogram|kilograms)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:ml|milliliter|milliliters)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:l|liter|liters)\b/gi,
+        /\b\d+\s*(?:count|ct|pack|packs|piece|pieces|unit|units)\b/gi,
+        /\b(?:family\s+size|party\s+size|large|medium|small|mini|regular)\b/gi,
+        /\b\d+(?:\.\d+)?\s*(?:serving|servings)\b/gi
+    ];
+    
+    return sizePatterns.some(pattern => pattern.test(title));
+}
+
+// Rule-based matching function for quick checks
+function quickRuleBasedMatch(keepaTitle, productTitle) {
+    if (!keepaTitle || !productTitle) {
+        return { status: "Reprovado", reason: "Título vazio" };
+    }
+    
+    // Normalize titles for comparison
+    const normalizeTitle = (title) => {
+        return title.toLowerCase()
+            .replace(/[^\w\s]/g, ' ') // Remove special characters
+            .replace(/\s+/g, ' ') // Normalize spaces
+            .trim();
+    };
+    
+    const keepaNormalized = normalizeTitle(keepaTitle);
+    const productNormalized = normalizeTitle(productTitle);
+    
+    // Check for exact match (after normalization)
+    if (keepaNormalized === productNormalized) {
+        return { status: "Aprovado", reason: null };
+    }
+    
+    // Check for high similarity (90%+ match)
+    const similarity = calculateSimilarity(keepaNormalized, productNormalized);
+    if (similarity >= 0.9) {
+        return { status: "Aprovado", reason: null };
+    }
+    
+    // Check for key brand and product matches
+    const keepaWords = keepaNormalized.split(' ');
+    const productWords = productNormalized.split(' ');
+    
+    // Extract brand (first word or common brands)
+    const commonBrands = [
+        'twix', 'snickers', 'mars', 'kit', 'kat', 'reeses', 'm&m', 'hershey', 'cadbury',
+        'dove', 'milky', 'way', 'butterfinger', 'baby', 'ruth', 'almond', 'joy', 'mounds',
+        'york', 'peppermint', 'patty', 'junior', 'mints', 'rolo', 'caramello', 'take', 'five',
+        'unreal', 'lindt', 'ghirardelli', 'godiva', 'milka', 'ferrero', 'rocher',
+        'toblerone', 'wrigley', 'haribo', 'skittles', 'starburst', 'jolly', 'rancher',
+        'airheads', 'nerds', 'sour', 'patch', 'swedish', 'fish', 'gummy', 'bears',
+        'worms', 'jelly', 'beans', 'mike', 'ike', 'partake', 'kindling', 'protein',
+        'pretzels', 'graham', 'cracker', 'minis', 'vegan', 'special', 'k', 'rice',
+        'krispies', 'frosted', 'flakes', 'corn', 'pops', 'lucky', 'charms', 'cinnamon',
+        'toast', 'crunch', 'honey', 'nut', 'cheerios', 'wheaties', 'total', 'raisin',
+        'bran', 'shredded', 'wheat', 'cocoa', 'puffs', 'trix', 'fruity', 'pebbles',
+        'captain', 'crunch', 'life', 'cereal'
+    ];
+    
+    // Find brand in both titles
+    let keepaBrand = null;
+    let productBrand = null;
+    
+    for (const word of keepaWords) {
+        if (commonBrands.includes(word)) {
+            keepaBrand = word;
+            break;
+        }
+    }
+    
+    for (const word of productWords) {
+        if (commonBrands.includes(word)) {
+            productBrand = word;
+            break;
+        }
+    }
+    
+    // If brands don't match, reject
+    if (keepaBrand && productBrand && keepaBrand !== productBrand) {
+        return { status: "Reprovado", reason: "Diferente" };
+    }
+    
+    // If brands match, check for key product identifiers
+    if (keepaBrand && productBrand && keepaBrand === productBrand) {
+        // Extract key product words (excluding brand and common words)
+        const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
+        const keepaProductWords = keepaWords.filter(word => !commonWords.includes(word) && word !== keepaBrand);
+        const productProductWords = productWords.filter(word => !commonWords.includes(word) && word !== productBrand);
+        
+        // Check if at least 70% of product words match
+        const matchingWords = keepaProductWords.filter(word => productProductWords.includes(word));
+        const matchPercentage = matchingWords.length / Math.max(keepaProductWords.length, productProductWords.length);
+        
+        if (matchPercentage >= 0.7) {
+            return { status: "Aprovado", reason: null };
+        }
+    }
+    
+    // If no rule-based match found, let AI handle it
+    return { status: "Reprovado", reason: "Necessita análise AI" };
+}
+
+// Calculate similarity between two strings
+function calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) {
+        return 1.0;
+    }
+    
+    const editDistance = levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+}
+
+// Levenshtein distance calculation
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
 }
 
 module.exports = { analyzeProduct, analyzeTitles };
